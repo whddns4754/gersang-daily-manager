@@ -1,0 +1,58 @@
+/* weekend.css */
+
+/* 1. 페이지 전환을 위한 필수 설정 */
+.page { 
+    display: none; 
+}
+
+.page.active { 
+    display: block; 
+}
+
+/* 2. 주간 퀘스트 영역 최적화 (왼쪽 붙임 & 캐릭터 가림 방지) */
+#weekly-quest {
+    max-width: 600px; 
+    margin: 20px 0 20px 20px; /* 왼쪽 정렬 */
+}
+
+.weekly-list {
+    background: rgba(255, 255, 255, 0.4); /* 투명도 0.4 */
+    border-radius: 10px;
+    overflow: hidden;
+    padding: 10px;
+}
+
+.weekly-header {
+    background: rgba(51, 51, 51, 0.8);
+    color: white;
+    font-weight: bold;
+    display: grid;
+    grid-template-columns: 60px 1fr 80px;
+    padding: 10px;
+}
+
+.weekly-item {
+    display: grid;
+    grid-template-columns: 60px 1fr 80px;
+    align-items: center;
+    padding: 10px;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 3. 임무 목록 텍스트 스타일: 굵게 유지, 색상 고정 */
+.weekly-item span:not(.status) {
+    font-weight: bold;
+    color: #333;
+}
+
+/* 4. 상태 텍스트 색상 분리 (완료/미완료) */
+.status.status-complete {
+    color: #28a745; /* 완료 시 녹색 */
+    font-weight: bold;
+}
+
+.status.status-incomplete {
+    color: #d9534f; /* 미완료 시 빨간색 */
+    font-weight: bold;
+}

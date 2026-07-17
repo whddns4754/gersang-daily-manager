@@ -1,0 +1,379 @@
+/* style.css */
+body { 
+    margin: 0; font-family: 'Malgun Gothic', sans-serif; 
+    background-image: url('이미지1.jpg'); background-size: cover; 
+    background-position: center; background-attachment: fixed; 
+    display: flex; height: 100vh; color: #fff;
+    overflow-x: hidden; /* 가로 스크롤 방지 */
+}
+
+/* 사이드바는 고정 폭 유지 */
+.sidebar {
+    width: 250px;
+    background: rgba(10, 25, 40, 0.85);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    flex-shrink: 0; /* 강제로 줄어들지 않게 설정 */
+}
+
+.sidebar-title {
+    font-size: 1.2rem;
+    color: #fff;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.menu-item {
+    padding: 12px;
+    color: #cbd5e0;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 15px;
+}
+
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+/* 메인 컨텐츠 영역 */
+.main-content { 
+    flex: 1; 
+    padding: 20px 40px; 
+    display: flex; 
+    flex-direction: column; 
+    overflow-y: auto; /* 내용이 넘치면 스크롤 */
+}
+
+/* 테이블 컨테이너 */
+.task-container { 
+    width: 100%;       
+    max-width: 600px;  
+    background: rgba(255, 255, 255, 0.6); 
+    border-radius: 10px; 
+    padding: 15px; 
+    margin-bottom: 15px; 
+    color: #000;
+}
+
+/* 테이블 설정 */
+table { width: 100%; border-collapse: collapse; margin-top: 5px; table-layout: fixed; } 
+th { text-align: left; padding: 10px; border-bottom: 2px solid rgba(0,0,0,0.3); font-size: 0.9rem; }
+td { 
+    padding: 10px; 
+    border-bottom: 1px solid rgba(0,0,0,0.1); 
+    font-size: 0.9rem; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap; 
+    font-weight: 700 !important; /* 테이블 내 모든 글씨 굵게 */
+}
+
+/* 상태 열(상태) 폭 강제 고정 */
+th:nth-child(1), td:nth-child(1) { width: 50px; }
+/* 진행도 열 폭 강제 고정 */
+th:nth-child(3), td:nth-child(3) { width: 80px; }
+
+/* 상태 텍스트 스타일 (색상 및 굵기 강제 적용) */
+.status { 
+    font-weight: 800 !important; 
+}
+
+.status-complete { 
+    color: #27ae60 !important; /* 완료 시 녹색 */
+    font-weight: 800 !important; 
+}
+
+.status-incomplete { 
+    color: #d63031 !important; /* 미완료 시 빨간색 */
+    font-weight: 800 !important; 
+}
+
+/* 환경설정 레이아웃 깨짐 강제 복구 */
+#settings-view table, 
+#settings-view tbody, 
+#settings-view tr, 
+#settings-view td {
+    display: table !important; /* 찌그러진 레이아웃을 다시 테이블 형태로 */
+    width: 100% !important;
+    table-layout: auto !important; /* 고정폭 해제 */
+}
+
+#settings-view input, 
+#settings-view textarea {
+    display: block !important;
+    width: 90% !important; /* 입력창 폭 복구 */
+    box-sizing: border-box !important;
+}
+
+/* 환경설정 영역을 가로로 길게 확장하고 정렬 강제 고정 */
+#settings-view .task-container {
+    max-width: 1000px !important; /* 가로폭을 더 길게 설정 */
+    width: 90% !important;
+}
+
+#settings-view table {
+    table-layout: auto !important; /* 글자 길이에 맞춰 가로폭 자동 조절 */
+    width: 100% !important;
+}
+
+#settings-view td {
+    white-space: nowrap !important; /* 글자가 줄바꿈되지 않게 */
+}
+
+/* 입력창을 표 안에서 꽉 차게 */
+#settings-view input, 
+#settings-view textarea {
+    width: 98% !important;
+    min-width: 300px !important; /* 입력창 최소 폭 보장 */
+
+}
+
+/* 환경설정 레이아웃 전체 판넬 (스크린샷 베이스 디자인) */
+.custom-config-panel {
+    background-color: #2b2a33 !important; /* 스크린샷 특유의 암회색 베이스 */
+    border-radius: 12px;
+    padding: 30px;
+    color: #ffffff;
+    font-family: 'Malgun Gothic', sans-serif;
+    max-width: 800px;
+    margin: 15px 0 0 0; /* 왼쪽 밀착 정렬 보정 */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* 메인 및 서브 안내 라벨 타이틀 */
+.panel-main-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffcc00; /* 금빛 노란색 스킨 적용 */
+    margin-top: 0;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.panel-sub-label {
+    font-size: 14px;
+    color: #cccccc;
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+/* 정렬 배치용 투명 테이블 */
+.panel-layout-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.panel-label {
+    font-size: 13px;
+    font-weight: bold;
+    color: #e0e0e0;
+    width: 25%;
+    text-align: left;
+    padding: 10px 0;
+    vertical-align: top;
+}
+.panel-field {
+    width: 75%;
+    padding: 6px 0;
+}
+
+/* ★ 핵심: 인풋 & 텍스트에리어 딥 블랙 일체형 테마 스킨 적용 */
+.dark-input, .dark-textarea {
+    width: 100%;
+    max-width: 580px;
+    padding: 10px;
+    box-sizing: border-box;
+    background-color: #1a191f !important; /* 흑색 암반 계열 배경 */
+    border: 1px solid #44434b !important;   /* 소프트 다크그레이 테두리 */
+    border-radius: 6px;
+    color: #ffffff !important;               /* 글씨 반전 흰색 처리 */
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 별칭 전용 가로폭 숏 인풋 */
+.short-input {
+    max-width: 200px;
+}
+
+/* 마우스 포커싱 하이라이트 인터랙션 */
+.dark-input:focus, .dark-textarea:focus {
+    background-color: #0c0b0e !important;
+    border-color: #ffcc00 !important; /* 하이라이트 금색 브러시 처리 */
+    outline: none;
+}
+
+.dark-input::placeholder {
+    color: #66656e;
+}
+
+/* 하단 이름 저장 액션 영역 및 버튼 */
+.panel-action-area {
+    margin-top: 25px;
+    text-align: left;
+}
+.btn-panel-save {
+    background-color: #2da44e; /* 스크린샷과 유사한 녹색 포인트 세이브 컬러 */
+    color: #ffffff;
+    font-weight: bold;
+    border: none;
+    padding: 10px 24px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.btn-panel-save:hover {
+    background-color: #2c974b;
+    box-shadow: 0 0 8px rgba(45, 164, 78, 0.4);
+}
+
+/* 환경설정 레이아웃 전체 판넬 (배경 투명도 60% 설정 완료) */
+.custom-config-panel {
+    background-color: rgba(43, 42, 51, 0.6) !important; /* 투명도 60% (0.6) 적용 */
+    border-radius: 12px;
+    padding: 30px;
+    color: #ffffff;
+    font-family: 'Malgun Gothic', sans-serif;
+    max-width: 800px;
+    margin: 15px 0 0 0; /* 왼쪽 밀착 정렬 */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* 메인 및 서브 안내 라벨 타이틀 */
+.panel-main-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffcc00; /* 금빛 노란색 스킨 */
+    margin-top: 0;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.panel-sub-label {
+    font-size: 14px;
+    color: #cccccc;
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+/* 정렬 배치용 투명 테이블 */
+.panel-layout-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.panel-label {
+    font-size: 13px;
+    font-weight: bold;
+    color: #e0e0e0;
+    width: 25%;
+    text-align: left;
+    padding: 10px 0;
+    vertical-align: top;
+}
+.panel-field {
+    width: 75%;
+    padding: 6px 0;
+}
+
+/* 인풋 & 텍스트에리어 딥 블랙 일체형 테마 스킨 */
+.dark-input, .dark-textarea {
+    width: 100%;
+    max-width: 580px;
+    padding: 10px;
+    box-sizing: border-box;
+    background-color: #1a191f !important; /* 흑색 암반 계열 배경 */
+    border: 1px solid #44434b !important;   /* 소프트 다크그레이 테두리 */
+    border-radius: 6px;
+    color: #ffffff !important;               /* 글씨 반전 흰색 처리 */
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 별칭 전용 가로폭 숏 인풋 */
+.short-input {
+    max-width: 200px;
+}
+
+/* 마우스 포커싱 하이라이트 인터랙션 */
+.dark-input:focus, .dark-textarea:focus {
+    background-color: #0c0b0e !important;
+    border-color: #ffcc00 !important; /* 하이라이트 금색 브러시 처리 */
+    outline: none;
+}
+
+.dark-input::placeholder {
+    color: #66656e;
+}
+
+/* 하단 이름 저장 액션 영역 및 버튼 */
+.panel-action-area {
+    margin-top: 25px;
+    text-align: left;
+}
+.btn-panel-save {
+    background-color: #2da44e; /* 녹색 포인트 세이브 컬러 */
+    color: #ffffff;
+    font-weight: bold;
+    border: none;
+    padding: 10px 24px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.btn-panel-save:hover {
+    background-color: #2c974b;
+    box-shadow: 0 0 8px rgba(45, 164, 78, 0.4);
+}
+
+
+.title-container {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* 글자와 버튼 사이 간격 */
+}
+
+.title-text {
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* 기본 버튼 스타일 */
+.pin-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ccc;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-app-region: no-drag; /* 💡 타이틀바 드래그 방해 금지 설정 */
+}
+
+/* 마우스 올렸을 때 */
+.pin-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+/* 항상 위 활성화(ON) 상태일 때 스타일 */
+.pin-button.active {
+    background: #00bcd4; /* 거상 테마나 UI에 맞는 포인트 컬러 (예: 하늘색/민트색 계열) */
+    border-color: #00ebff;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 0 5px rgba(0, 188, 212, 0.5);
+}

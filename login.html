@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>서버 선택</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Pretendard', sans-serif;
+            /* 배경 이미지 설정 */
+            background-image: url('이미지2.jpg'); 
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        #login-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 50px 40px; /* 여백 조정 */
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 320px;
+        }
+
+        h2 { margin-bottom: 30px; color: #333; font-size: 24px; }
+        
+        select {
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 8px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        button {
+            padding: 10px 25px;
+            font-size: 16px;
+            border-radius: 8px;
+            background-color: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-container">
+        <h2>서버를 선택해주세요</h2>
+        <select id="server-select">
+            <option value="주작">주작</option>
+            <option value="백호">백호</option>
+            <option value="청룡">청룡</option>
+            <option value="현무">현무</option>
+            <option value="봉황">봉황</option>
+            <option value="해태">해태</option>
+            <option value="세종">세종</option>
+            <option value="신구">신구</option>
+            <option value="단군">단군</option>
+            <option value="비호">비호</option>
+            <option value="태극">태극</option>
+            <option value="화랑">화랑</option>
+            <option value="태왕">태왕</option>
+        </select>
+        <button onclick="saveServer()">확인</button>
+    </div>
+
+    <script>
+
+
+	// [login.html에 추가할 자동 로그인 코드]
+(function() {
+    // 로컬 스토리지에 이미 저장된 서버 정보가 있는지 확인합니다.
+    const savedServer = localStorage.getItem('selectedServer');
+    
+    // 만약 기존에 선택했던 서버가 존재한다면 바로 Main.html로 순간이동(자동 진입)시킵니다.
+    if (savedServer) {
+        console.log("기존에 저장된 서버 발견: " + savedServer + " - 메인 페이지로 바로 진입합니다.");
+        window.location.href = 'Main.html';
+    }
+})();
+
+        function saveServer() {
+            const server = document.getElementById('server-select').value;
+            localStorage.setItem('selectedServer', server);
+            window.location.href = 'Main.html';
+        }
+    </script>
+</body>
+</html>

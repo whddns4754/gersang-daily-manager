@@ -1,0 +1,138 @@
+/* Stats.css - 다중 클라 수익 통계 스타일 통합본 */
+
+.profit-container {
+    background: rgba(255, 255, 255, 0.8);
+    padding: 20px;
+    border-radius: 15px;
+    max-width: 800px;
+    color: #333;
+    margin-top: 20px;
+    
+    /* [스크롤바 추가] 데이터가 너무 많으면 내부에서 스크롤되도록 설정 */
+    max-height: 70vh;    /* 화면 높이의 70%까지만 커짐 */
+    overflow-y: auto;    /* 세로 스크롤 활성화 */
+    
+    /* 스크롤바 디자인 (크롬/엣지/사파리) */
+    scrollbar-width: thin; 
+    scrollbar-color: #888 #f1f1f1;
+}
+
+/* 스크롤바 막대 디자인 */
+.profit-container::-webkit-scrollbar {
+    width: 8px;
+}
+.profit-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+.profit-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+.profit-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.profit-container.sunset-mode {
+    background-image: url('이미지2.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    transition: background 0.5s ease;
+}
+
+/* 테이블 설정 */
+.profit-table { 
+    width: 100%; 
+    background: rgba(255, 255, 255, 0.4) !important; 
+    border-radius: 8px; 
+    border-collapse: collapse; 
+    margin-bottom: 15px;
+    backdrop-filter: blur(5px);
+}
+
+/* 탭 버튼 스타일 */
+.tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+.tab-btn { padding: 8px 15px; cursor: pointer; border: 1px solid #ccc; border-radius: 5px; background: #fff; }
+.tab-btn.active { background: #34495e; color: #fff; border-color: #34495e; }
+
+/* 입력 그룹 스타일 */
+.input-group { display: flex; gap: 5px; margin-bottom: 20px; }
+.input-group input, .input-group select { 
+    padding: 8px; 
+    border: 1px solid #ccc; 
+    border-radius: 4px; 
+    flex: 1; 
+}
+.input-group button { padding: 8px 15px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; }
+
+/* 테이블 스타일 */
+.profit-table th, .profit-table td { 
+    padding: 10px; 
+    border-bottom: 1px solid #eee; 
+    text-align: center; 
+}
+
+/* 수량(3번째)과 총액(4번째) 데이터 오른쪽 정렬 */
+.profit-table td:nth-child(3), 
+.profit-table td:nth-child(4) {
+    text-align: right;
+    padding-right: 20px;
+}
+
+/* 블로그 포스팅용 텍스트 복사 버튼 */
+.blog-btn {
+    width: 100%; 
+    padding: 12px; 
+    background: #2ecc71; 
+    color: white;
+    border: none; 
+    border-radius: 5px; 
+    font-weight: bold; 
+    cursor: pointer;
+}
+.blog-btn:hover { background: #27ae60; }
+
+
+.lowest-price-table {
+    border: 2px solid #3498db; /* 서버 전용 강조 파란색 */
+    background: rgba(52, 73, 94, 0.1) !important;
+}
+.lowest-price-table th {
+    background: #3498db;
+    color: white;
+}
+
+
+#price-view {
+    display: none; /* 초기값 */
+    width: 100%;
+}
+
+.lowest-price-table {
+    table-layout: auto !important; /* 내용에 따라 유연하게 */
+    border: 2px solid #f1c40f !important;
+}
+
+/* 탭 버튼 디자인 통일 (Stats.css 상단 부분 확인) */
+.tab-btn { 
+    padding: 8px 15px; 
+    cursor: pointer; 
+    border: 1px solid #ccc; 
+    border-radius: 5px; 
+    background: #fff; 
+}
+.tab-btn.active { background: #34495e; color: #fff; }
+
+/* 탭 콘텐츠 기본 숨김 */
+.tab-content { display: none; }
+
+/* 최저가 리스트 테이블 강조 */
+.lowest-price-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid #3498db;
+    margin-top: 10px;
+}
+.lowest-price-table th { background: #3498db; color: white; padding: 10px; }
+.lowest-price-table td { text-align: center; padding: 10px; color: #fff; border-bottom: 1px solid #444; }

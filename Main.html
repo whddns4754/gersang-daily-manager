@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+
+<script>
+    // 페이지가 로드되자마자 실행
+    (function() {
+        const savedServer = localStorage.getItem('selectedServer');
+        
+        // 만약 저장된 서버 정보가 없다면 다시 login.html로 강제 이동
+        if (!savedServer) {
+            window.location.href = 'login.html';
+        } else {
+            console.log("선택된 서버 정보 확인됨: " + savedServer);
+            // 여기서 기존 앱 초기화 함수들을 호출하면 됩니다.
+            // 예: initApp(); 
+        }
+    })();
+</script>
+
+
+    <meta charset="UTF-8">
+    <title>거상 데일리 매니저</title>
+    <link rel="stylesheet" href="Style.css">
+    <link rel="stylesheet" href="weekend.css">
+    <link rel="stylesheet" href="Stats.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+        /* [수정] 테이블 겹침 현상 및 간격 오류 전면 해결 */
+        .profit-table, .task-container table {
+            width: 100%;
+            table-layout: fixed; /* 테이블 너비 고정 */
+            border-collapse: collapse;
+        }
+        
+        /* 체크박스가 들어가는 첫 번째 열(상태)의 너비 확보 및 정렬 */
+        .task-container table th:nth-child(1),
+        .task-container table td:nth-child(1) {
+            width: 60px !important;
+            text-align: center;
+            padding: 10px 5px !important;
+        }
+
+        /* 중앙 숙제 목록 텍스트 정렬 및 여백 확보 */
+        .task-container table th:nth-child(2),
+        .task-container table td:nth-child(2) {
+            text-align: left;
+            padding: 10px 15px !important;
+            word-break: keep-all;
+        }
+
+        /* 진행도(완료/미완료) 열 정렬 */
+        .task-container table th:nth-child(3),
+        .task-container table td:nth-child(3) {
+            width: 80px !important;
+            text-align: center;
+            padding: 10px 5px !important;
+        }
+
+        #main-title {
+            word-break: break-all;
+            font-size: 24px;
+        }
+
+/* 사이드바 메뉴 기본 글씨를 흰색으로 통일 */
+    .menu-item a {
+        color: #ffffff !important; /* 모든 메뉴 글씨 흰색 */
+        text-decoration: none;
+        display: block;
+        padding: 10px 0;
+    }
+
+    /* 마우스 올렸을 때(Hover) 약간 밝게 강조 */
+    .menu-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+    }
+
+    /* 현재 선택된 메뉴 항목(active) 강조 스타일 */
+    .menu-item.active {
+        border-left: 3px solid #ffd700;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* 아이콘 색상도 흰색 계열로 통일 */
+    .menu-item .icon {
+        margin-right: 8px;
+    }
+
+
+    </style>
+
+</head>
+<body>
+
+
+     <nav class="sidebar">
+    <div class="sidebar-title">메뉴</div>
+    <div class="menu-item"><a href="#" onclick="showSection('daily-task')">🏠 일일 숙제 메인 관리</a></div>
+    <div class="menu-item"><a href="#" onclick="showSection('weekly-quest')">⭐ 주간 대형 퀘스트 목록</a></div>
+    <div class="menu-item" onclick="showSection('profit-stats')">📊 다중 클라 수익 통계</div>
+    <div class="menu-item" onclick="showSection('settings-view')">⚙️ 시스템 환경 설정</div>
+
+    <div id="sidebar-dashboard" style="margin-top: auto; padding: 20px; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.1);">
+        <div style="margin-bottom: 15px;">
+            <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">오늘의 총 수익</div>
+            <div id="today-total-profit" style="font-size: 18px; font-weight: bold; color: #ffd700;">0원</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">일일 숙제 완료율</div>
+            <div style="background: #333; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div id="today-progress-bar-fill" style="width: 0%; height: 100%; background: #64b5f6; transition: width 0.5s;"></div>
+            </div>
+            <div id="today-progress-text" style="font-size: 12px; color: #64b5f6; margin-top: 5px; text-align: right;">0%</div>
+        </div>
+    </div>
+</nav>
+
+<div class="main-content">
+        <div class="title-container">
+    <span class="title-text">[백호] 거상 데일리 매니저V2</span>
+    <!-- 항상 위 ON/OFF 토글 버튼 -->
+    <button id="pin-btn" class="pin-button active" title="항상 위로 고정">
+        📌 항상 위
+    </button>
+</div>
+
+
+        <script>
+            const savedServer = localStorage.getItem('selectedServer');
+            if (savedServer) {
+                document.getElementById('main-title').innerText = `[${savedServer}] 거상 데일리 매니저V2`;
+            }
+        </script>
+
+	<div style="font-size: 16px; font-weight: bold; margin-bottom: 20px; color: #ffd700; display: inline-block;">
+         📅 오늘 날짜: <span id="current-date">-</span>
+         &nbsp;&nbsp;&nbsp;&nbsp;
+         ⏰ 현재 시간: <span id="current-time">-</span>
+     </div>
+
+        <section id="daily-task" class="page active">
+
+            <div style="margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <button onclick="completeDailyTasks()" style="cursor: pointer; padding: 5px 10px; background-color: #2e7d32; color: white; border: 1px solid #4caf50; font-weight: bold; border-radius: 3px;">[일일 일괄완료]</button>
+                <button onclick="resetDailyTasks()" style="cursor: pointer; padding: 5px 10px; background-color: #c62828; color: white; border: 1px solid #ef5350; font-weight: bold; border-radius: 3px;">[일일 일괄해제]</button>
+                
+                <div style="display: flex; align-items: center; gap: 8px; margin-left: 10px;">
+                    <span style="color: #ffd700; font-weight: bold; font-size: 14px;">클라이언트 선택:</span>
+                    <select class="client-select" style="padding: 6px 12px; background-color: #ff9800; color: white; font-weight: bold; border-radius: 4px; border: none; cursor: pointer; outline: none;"></select>
+                </div>
+            </div>
+
+            <div class="tables-group">
+                <div class="task-container">
+                    <h3>일일 숙제 (필수)</h3>
+                    <table id="essential-table"><thead><tr><th>상태</th><th>숙제 목록</th><th>진행도</th></tr></thead><tbody id="essential-body"></tbody></table>
+                    <h3 id="essential-progress">일일 숙제(필수) 0 / 0 완료</h3>
+                </div>
+                <div class="task-container">
+                    <h3>일일 특수임무 </h3>
+                    <table id="optional-table"><thead><tr><th>상태</th><th>숙제 목록</th><th>진행도</th></tr></thead><tbody id="optional-body"></tbody></table>
+                    <h3 id="optional-progress">일일 특수임무 0 / 0 완료</h3>
+                </div>
+            </div>
+        </section>
+
+        <section id="weekly-quest" class="page">
+            
+            <div style="margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <button onclick="completeWeeklyTasks()" style="cursor: pointer; padding: 5px 10px; background-color: #1565c0; color: white; border: 1px solid #2196f3; font-weight: bold; border-radius: 3px;">[주간 일괄완료]</button>
+                <button onclick="resetWeeklyTasks()" style="cursor: pointer; padding: 5px 10px; background-color: #e65100; color: white; border: 1px solid #ff9800; font-weight: bold; border-radius: 3px;">[주간 일괄해제]</button>
+                
+                <div style="display: flex; align-items: center; gap: 8px; margin-left: 10px;">
+                    <span style="color: #ffd700; font-weight: bold; font-size: 14px;">클라이언트 선택:</span>
+                    <select class="client-select" style="padding: 6px 12px; background-color: #ff9800; color: white; font-weight: bold; border-radius: 4px; border: none; cursor: pointer; outline: none;"></select>
+                </div>
+            </div>
+
+            <div class="task-container">
+                <h3>⭐ 주간 대형 퀘스트 목록</h3>
+                <table id="weekly-table">
+                    <thead><tr><th>상태</th><th>퀘스트 목록</th><th>진행도</th></tr></thead>
+                    <tbody id="weekly-body"></tbody>
+                </table>
+                <h3 id="weekly-progress">주간 퀘스트 0 / 0 완료</h3>
+            </div>
+        </section>
+
+        <section id="settings-view" class="page">
+            <table>
+                <tbody>
+                    <tr>
+                        <td colspan="2" id="client-name-inputs"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="profit-stats" class="page">
+            <div class="profit-container">
+                <h2>💰 다중 클라 수익 통계</h2>
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="showProfitTab('daily', event)">일간 통계</button>
+                    <button class="tab-btn" onclick="showProfitTab('weekly', event)">주간 통계</button>
+                    <button class="tab-btn" onclick="showProfitTab('monthly', event)">월간 통계</button>
+                    <button class="tab-btn" onclick="showProfitTab('goal', event)">목표 설정</button>
+                    <button class="tab-btn" onclick="showProfitTab('price', event)">아이템 최저가 확인</button>
+                </div>
+
+                <div id="goal-view" style="display:none;">
+                    <h3>🎯 클라별 목표 수익 설정 (월간)</h3>
+                    <table class="profit-table">
+                        <thead><tr><th>클라이언트</th><th>목표 수익(원)</th><th>현재 수익</th><th>달성률</th></tr></thead>
+                        <tbody id="goal-body"></tbody>
+                    </table>
+                    <button onclick="saveGoals()">목표 저장</button>
+                </div>
+
+<div id="price-view" class="tab-content" style="display:none;">
+    <h3>🔥 [<span id="display-server-name"></span>] 서버 최저가 리스트</h3>
+    <table class="profit-table lowest-price-table">
+        <thead>
+            <tr><th>아이템명</th><th>최저가(원)</th><th>상태</th></tr>
+        </thead>
+        <tbody id="price-body"></tbody>
+    </table>
+</div>
+<div id="stats-content-area">
+    <div id="goal-view" class="tab-content" style="display:block;">
+    </div>
+
+              <div id="daily-view">
+    <div class="input-group">
+        <select id="client-select" class="client-select" style="padding: 5px; background-color: #ff9800; color: white; font-weight: bold; border-radius: 4px; border: none; cursor: pointer; outline: none;">
+            <option value="1클라">1클라</option>
+            <option value="2클라">2클라</option>
+            <option value="3클라">3클라</option>
+            <option value="4클라">4클라</option>
+            <option value="5클라">5클라</option>
+        </select>
+
+<input list="item-list" type="text" id="item-name" placeholder="아이템명"> 
+<datalist id="item-list">
+</datalist>
+
+        <input type="number" id="item-price" placeholder="총액">
+        <input type="number" id="item-qty" placeholder="수량">
+        <button type="button" onclick="addProfit()">추가</button>
+    </div>
+    <table class="profit-table">
+        <thead><tr><th>클라</th><th>아이템</th><th>수량</th><th>총액</th><th>관리</th></tr></thead>
+        <tbody id="profit-body"></tbody>
+    </table>
+    <button class="blog-btn" onclick="copyDailyBlogText()">네이버 블로그 포스팅용 텍스트 복사</button>
+</div>
+
+                <div id="weekly-view" style="display:none;">
+                    <table class="profit-table">
+                        <thead>
+                            <tr>
+                                <th>아이템 분류</th>
+                                <th>총 수량</th>
+                                <th>평균 단가</th>
+                                <th>총액</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weekly-body-stats"></tbody>
+                    </table>
+                    <button class="blog-btn" onclick="copyBlogText()">네이버 블로그 포스팅용 텍스트 복사</button>
+                </div>
+
+                <div id="monthly-view" style="display:none;">
+                    <div style="width:100%; max-width:600px; margin:20px auto; background:rgba(0,0,0,0.5); padding:15px; border-radius:8px;">
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                    
+                    <table class="profit-table">
+                        <thead>
+                            <tr>
+                                <th>아이템 분류</th>
+                                <th>총 수량</th>
+                                <th>평균 단가</th>
+                                <th>총액</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthly-body-stats"></tbody>
+                    </table>
+                    <button class="blog-btn" onclick="copyMonthlyBlogText()">네이버 블로그 포스팅용 텍스트 복사</button>
+                </div>
+            </div>
+        </section>
+    </div>
+   <script src="main_Script.js?v=5"></script>
+
+</body>
+</html>
