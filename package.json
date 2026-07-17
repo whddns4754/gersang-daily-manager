@@ -1,29 +1,30 @@
 {
-  "name": "gsdailymanager",
-  "version": "1.1.0",
-  "description": "거상 데일리 매니저",
+  "name": "gersang-daily-manager",
+  "version": "1.2.1", 
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder"
   },
-  "build": {
-    "appId": "kr.gsdailymanager.app",
-    "productName": "거상 데일리 매니저",
-    "win": {
-      "target": "portable",
-      "icon": "icon.ico"
-    }
+  "dependencies": {
+    "electron-updater": "^6.1.4"
   },
   "devDependencies": {
-    "electron": "43.1.0",
-    "electron-builder": "26.15.3"
+    "electron": "^25.0.0",
+    "electron-builder": "^24.6.3"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "electron-updater": "^6.8.9"
+  "build": {
+    "appId": "com.gersang.manager",
+    "productName": "GersangDailyManager",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "whddns4754",
+        "repo": "gersang-daily-manager" 
+      }
+    ],
+    "win": {
+      "target": ["nsis"],       "icon": "icon.ico"
+    }
   }
 }
