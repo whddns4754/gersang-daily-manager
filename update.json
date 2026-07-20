@@ -1,0 +1,12 @@
+{
+  "latestVersion": "1.2.4",
+  "releaseDate": "2026-07-20",
+  "changelog": [
+    "대시보드 실시간 주간 수익 목표 달성률 및 일일 숙제 완료율 계산 반영",
+    "아이템 자동완성 목록 영구 보존용 마스터 리스트 적용",
+    "상단 고정('📌 항상 위') 옵션 상태 로컬 저장 지원",
+    "생산시설 업데이트 대비 최저가 연동 및 서버 데이터 안정성 개선",
+    "앱 내 자동 업데이트 알림 및 패치노트 팝업 기능 추가"
+  ],
+  "downloadUrl": "https://github.com/whddns4754/gersang-daily-manager/releases"
+}
