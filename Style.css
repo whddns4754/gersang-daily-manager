@@ -14,6 +14,8 @@ body {
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     padding: 20px;
     flex-shrink: 0; /* 강제로 줄어들지 않게 설정 */
+    display: flex;
+    flex-direction: column; /* 대시보드를 하단에 배치하기 위해 추가 */
 }
 
 .sidebar-title {
@@ -132,113 +134,11 @@ th:nth-child(3), td:nth-child(3) { width: 80px; }
 #settings-view textarea {
     width: 98% !important;
     min-width: 300px !important; /* 입력창 최소 폭 보장 */
-
-}
-
-/* 환경설정 레이아웃 전체 판넬 (스크린샷 베이스 디자인) */
-.custom-config-panel {
-    background-color: #2b2a33 !important; /* 스크린샷 특유의 암회색 베이스 */
-    border-radius: 12px;
-    padding: 30px;
-    color: #ffffff;
-    font-family: 'Malgun Gothic', sans-serif;
-    max-width: 800px;
-    margin: 15px 0 0 0; /* 왼쪽 밀착 정렬 보정 */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-/* 메인 및 서브 안내 라벨 타이틀 */
-.panel-main-title {
-    font-size: 20px;
-    font-weight: bold;
-    color: #ffcc00; /* 금빛 노란색 스킨 적용 */
-    margin-top: 0;
-    margin-bottom: 25px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.panel-sub-label {
-    font-size: 14px;
-    color: #cccccc;
-    font-weight: bold;
-    margin-bottom: 12px;
-}
-
-/* 정렬 배치용 투명 테이블 */
-.panel-layout-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-.panel-label {
-    font-size: 13px;
-    font-weight: bold;
-    color: #e0e0e0;
-    width: 25%;
-    text-align: left;
-    padding: 10px 0;
-    vertical-align: top;
-}
-.panel-field {
-    width: 75%;
-    padding: 6px 0;
-}
-
-/* ★ 핵심: 인풋 & 텍스트에리어 딥 블랙 일체형 테마 스킨 적용 */
-.dark-input, .dark-textarea {
-    width: 100%;
-    max-width: 580px;
-    padding: 10px;
-    box-sizing: border-box;
-    background-color: #1a191f !important; /* 흑색 암반 계열 배경 */
-    border: 1px solid #44434b !important;   /* 소프트 다크그레이 테두리 */
-    border-radius: 6px;
-    color: #ffffff !important;               /* 글씨 반전 흰색 처리 */
-    font-size: 13px;
-    font-family: inherit;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 별칭 전용 가로폭 숏 인풋 */
-.short-input {
-    max-width: 200px;
-}
-
-/* 마우스 포커싱 하이라이트 인터랙션 */
-.dark-input:focus, .dark-textarea:focus {
-    background-color: #0c0b0e !important;
-    border-color: #ffcc00 !important; /* 하이라이트 금색 브러시 처리 */
-    outline: none;
-}
-
-.dark-input::placeholder {
-    color: #66656e;
-}
-
-/* 하단 이름 저장 액션 영역 및 버튼 */
-.panel-action-area {
-    margin-top: 25px;
-    text-align: left;
-}
-.btn-panel-save {
-    background-color: #2da44e; /* 스크린샷과 유사한 녹색 포인트 세이브 컬러 */
-    color: #ffffff;
-    font-weight: bold;
-    border: none;
-    padding: 10px 24px;
-    font-size: 13px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-.btn-panel-save:hover {
-    background-color: #2c974b;
-    box-shadow: 0 0 8px rgba(45, 164, 78, 0.4);
 }
 
 /* 환경설정 레이아웃 전체 판넬 (배경 투명도 60% 설정 완료) */
 .custom-config-panel {
-    background-color: rgba(43, 42, 51, 0.6) !important; /* 투명도 60% (0.6) 적용 */
+    background-color: rgba(43, 42, 51, 0.6) !important; /* 투명도 60% 적용 */
     border-radius: 12px;
     padding: 30px;
     color: #ffffff;
@@ -336,7 +236,6 @@ th:nth-child(3), td:nth-child(3) { width: 80px; }
     background-color: #2c974b;
     box-shadow: 0 0 8px rgba(45, 164, 78, 0.4);
 }
-
 
 .title-container {
     display: flex;

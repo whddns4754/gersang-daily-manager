@@ -1,138 +1,222 @@
-/* Stats.css - 다중 클라 수익 통계 스타일 통합본 */
+/* Stats.css - 다중 클라 수익 통계 (좌측 정렬 & 고투명도 테마) */
 
+/* 1. 통계 전체 메인 컨테이너 (좌측 정렬 및 배경 투명화) */
 .profit-container {
-    background: rgba(255, 255, 255, 0.8);
-    padding: 20px;
+    background: rgba(255, 255, 255, 0.45) !important; /* 배경 투명도 대폭 상향 (캐릭터가 잘 보임) */
+    backdrop-filter: blur(8px);                         /* 유리 효과로 가독성 유지 */
+    -webkit-backdrop-filter: blur(8px);
+    padding: 25px;
     border-radius: 15px;
-    max-width: 800px;
-    color: #333;
-    margin-top: 20px;
+    width: 95%;              
+    max-width: 1000px;        
+    color: #111;
+    margin: 20px 0 0 0;                                /* [수정] 중앙 정렬 해제 -> 좌측에 딱 붙도록 조정 */
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     
-    /* [스크롤바 추가] 데이터가 너무 많으면 내부에서 스크롤되도록 설정 */
-    max-height: 70vh;    /* 화면 높이의 70%까지만 커짐 */
-    overflow-y: auto;    /* 세로 스크롤 활성화 */
+    /* 스크롤바 영역 (75vh 초과시 생성) */
+    max-height: 75vh;
+    overflow-y: auto;
     
-    /* 스크롤바 디자인 (크롬/엣지/사파리) */
     scrollbar-width: thin; 
-    scrollbar-color: #888 #f1f1f1;
+    scrollbar-color: rgba(0, 0, 0, 0.3) rgba(255, 255, 255, 0.2);
 }
 
-/* 스크롤바 막대 디자인 */
 .profit-container::-webkit-scrollbar {
     width: 8px;
 }
 .profit-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 4px;
 }
 .profit-container::-webkit-scrollbar-thumb {
-    background: #888;
+    background: rgba(0, 0, 0, 0.3);
     border-radius: 4px;
 }
 .profit-container::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: rgba(0, 0, 0, 0.5);
 }
 
-.profit-container.sunset-mode {
-    background-image: url('이미지2.jpg') !important;
-    background-size: cover !important;
-    background-position: center !important;
-    transition: background 0.5s ease;
+/* 2. 탭 버튼 스타일 (반투명 스타일) */
+.tabs { 
+    display: flex; 
+    gap: 8px; 
+    margin-bottom: 20px; 
+    flex-wrap: wrap;
 }
 
-/* 테이블 설정 */
+.tab-btn { 
+    padding: 9px 18px; 
+    cursor: pointer; 
+    border: 1px solid rgba(255, 255, 255, 0.5); 
+    border-radius: 6px; 
+    background: rgba(255, 255, 255, 0.6); 
+    color: #2c3e50;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(4px);
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.85);
+}
+
+.tab-btn.active { 
+    background: #34495e; 
+    color: #ffffff; 
+    border-color: #34495e; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.tab-content { 
+    display: none; 
+}
+
+/* 3. 입력 그룹 스타일 */
+.input-group { 
+    display: flex; 
+    gap: 8px; 
+    margin-bottom: 20px; 
+    align-items: center;
+}
+
+.input-group input, 
+.input-group select { 
+    padding: 8px 12px; 
+    border: 1px solid rgba(0, 0, 0, 0.15); 
+    border-radius: 4px; 
+    flex: 1; 
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.input-group button { 
+    padding: 8px 18px; 
+    background: #34495e; 
+    color: white; 
+    border: none; 
+    border-radius: 4px; 
+    font-weight: bold;
+    cursor: pointer; 
+    transition: background 0.2s ease;
+}
+
+/* 4. 기본 수익 테이블 (반투명 Glassmorphism) */
 .profit-table { 
     width: 100%; 
-    background: rgba(255, 255, 255, 0.4) !important; 
+    background: rgba(255, 255, 255, 0.35) !important; /* 테이블 자체 투명도 증가 */
     border-radius: 8px; 
     border-collapse: collapse; 
     margin-bottom: 15px;
     backdrop-filter: blur(5px);
+    table-layout: auto !important;
 }
 
-/* 탭 버튼 스타일 */
-.tabs { display: flex; gap: 10px; margin-bottom: 15px; }
-.tab-btn { padding: 8px 15px; cursor: pointer; border: 1px solid #ccc; border-radius: 5px; background: #fff; }
-.tab-btn.active { background: #34495e; color: #fff; border-color: #34495e; }
-
-/* 입력 그룹 스타일 */
-.input-group { display: flex; gap: 5px; margin-bottom: 20px; }
-.input-group input, .input-group select { 
-    padding: 8px; 
-    border: 1px solid #ccc; 
-    border-radius: 4px; 
-    flex: 1; 
-}
-.input-group button { padding: 8px 15px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; }
-
-/* 테이블 스타일 */
-.profit-table th, .profit-table td { 
-    padding: 10px; 
-    border-bottom: 1px solid #eee; 
+.profit-table th, 
+.profit-table td { 
+    padding: 12px 10px; 
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08); 
     text-align: center; 
+    font-size: 14px;
+    white-space: nowrap;
+    color: #111; /* 글자 잘 보이도록 다크 칼라 사용 */
 }
 
-/* 수량(3번째)과 총액(4번째) 데이터 오른쪽 정렬 */
-.profit-table td:nth-child(3), 
-.profit-table td:nth-child(4) {
+.profit-table th {
+    background: rgba(52, 73, 94, 0.15);
+    color: #1a252f;
+    font-weight: bold;
+}
+
+/* 수량 및 금액 열 우측 정렬 */
+#daily-view .profit-table td:nth-child(3), 
+#daily-view .profit-table td:nth-child(4),
+#weekly-view .profit-table td:nth-child(3), 
+#weekly-view .profit-table td:nth-child(4),
+#monthly-view .profit-table td:nth-child(3), 
+#monthly-view .profit-table td:nth-child(4) {
     text-align: right;
     padding-right: 20px;
 }
 
-/* 블로그 포스팅용 텍스트 복사 버튼 */
+/* 5. 목표 설정(Goal) 전용 테이블 스타일 */
+#goal-view .profit-table {
+    background: rgba(255, 255, 255, 0.4) !important;
+}
+
+#goal-view .profit-table td {
+    vertical-align: middle;
+    white-space: normal;
+}
+
+/* 목표 설정 입력창 투명도 처리 */
+#goal-view input[type="number"] {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+/* 목표 설정 탭 각 열 너비 지정 */
+#goal-view .profit-table th:nth-child(1),
+#goal-view .profit-table td:nth-child(1) { width: 20%; text-align: left; padding-left: 15px; }
+
+#goal-view .profit-table th:nth-child(2),
+#goal-view .profit-table td:nth-child(2) { width: 30%; }
+
+#goal-view .profit-table th:nth-child(3),
+#goal-view .profit-table td:nth-child(3) { width: 50%; text-align: left; }
+
+/* 6. 서버 최저가 리스트 전용 테이블 */
+.lowest-price-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(255, 255, 255, 0.4) !important;
+    border: 2px solid rgba(52, 152, 219, 0.6) !important;
+    border-radius: 8px;
+    margin-top: 10px;
+    table-layout: auto !important;
+}
+
+.lowest-price-table th { 
+    background: rgba(52, 152, 219, 0.8) !important; 
+    color: #ffffff !important; 
+    padding: 12px; 
+    font-weight: bold;
+}
+
+.lowest-price-table td { 
+    text-align: center; 
+    padding: 12px; 
+    color: #111 !important; 
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08); 
+    white-space: nowrap;
+}
+
+.lowest-price-table td:nth-child(1) {
+    text-align: left;
+    padding-left: 20px;
+}
+
+.lowest-price-table tr:hover {
+    background-color: rgba(52, 152, 219, 0.15);
+}
+
+/* 7. 블로그 포스팅용 텍스트 복사 버튼 */
 .blog-btn {
     width: 100%; 
     padding: 12px; 
     background: #2ecc71; 
     color: white;
     border: none; 
-    border-radius: 5px; 
+    border-radius: 6px; 
     font-weight: bold; 
+    font-size: 14px;
     cursor: pointer;
-}
-.blog-btn:hover { background: #27ae60; }
-
-
-.lowest-price-table {
-    border: 2px solid #3498db; /* 서버 전용 강조 파란색 */
-    background: rgba(52, 73, 94, 0.1) !important;
-}
-.lowest-price-table th {
-    background: #3498db;
-    color: white;
+    transition: background 0.2s ease;
+    margin-top: 5px;
 }
 
-
-#price-view {
-    display: none; /* 초기값 */
-    width: 100%;
+.blog-btn:hover { 
+    background: #27ae60; 
 }
-
-.lowest-price-table {
-    table-layout: auto !important; /* 내용에 따라 유연하게 */
-    border: 2px solid #f1c40f !important;
-}
-
-/* 탭 버튼 디자인 통일 (Stats.css 상단 부분 확인) */
-.tab-btn { 
-    padding: 8px 15px; 
-    cursor: pointer; 
-    border: 1px solid #ccc; 
-    border-radius: 5px; 
-    background: #fff; 
-}
-.tab-btn.active { background: #34495e; color: #fff; }
-
-/* 탭 콘텐츠 기본 숨김 */
-.tab-content { display: none; }
-
-/* 최저가 리스트 테이블 강조 */
-.lowest-price-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: rgba(255,255,255,0.1);
-    border: 2px solid #3498db;
-    margin-top: 10px;
-}
-.lowest-price-table th { background: #3498db; color: white; padding: 10px; }
-.lowest-price-table td { text-align: center; padding: 10px; color: #fff; border-bottom: 1px solid #444; }

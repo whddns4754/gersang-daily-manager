@@ -18,22 +18,14 @@ const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyB2pSo-rNWz_W
 
 let myMonthlyChart = null;
 
-// ★ [서버 이름 정제 유틸리티 - 정밀 보완 버전]
+// ★ [서버 이름 정제 유틸리티]
 function cleanServerName(serverName) {
     if (!serverName) return "";
-    
     let cleaned = String(serverName);
-    
-    // 1. 역슬래시(\) 및 특수 기호, 괄호 전부 삭제
     cleaned = cleaned.replace(/\\/g, ""); 
     cleaned = cleaned.replace(/[\[\]\(\)\{\}\"\']/g, ""); 
-    
-    // 2. "서버"라는 단어 자체도 삭제
     cleaned = cleaned.replace(/서버/g, "");
-    
-    // 3. 앞뒤 및 중간 공백 완전 제거
     cleaned = cleaned.trim().replace(/\s+/g, "");
-    
     return cleaned;
 }
 
@@ -44,18 +36,16 @@ function getServerKey(key) {
     return `${cleanServer}_${key}`;
 }
 
-// ★ [클라이언트별 격리 키 생성 도우미 - 다중 드롭다운 대응]
-// 화면의 여러 드롭다운 중 첫 번째 활성화된 값을 기준으로 클라이언트명을 가져옵니다.
+// ★ [클라이언트별 격리 키 생성 도우미]
 function getClientServerKey(key) {
     const rawSelectedServer = localStorage.getItem('selectedServer') || "공통";
     const cleanServer = cleanServerName(rawSelectedServer);
-    
     const clientSelect = document.querySelector('.client-select');
     const clientName = clientSelect ? clientSelect.value : "1클라";
     return `${cleanServer}_${clientName}_${key}`;
 }
 
-// [데이터 로드 유틸리티 - 서버별 고유 키를 기반으로 로드]
+// [데이터 로드 유틸리티]
 function getSavedTasks(key, defaultArray) {
     const serverKey = getServerKey(key);
     const saved = localStorage.getItem(serverKey);
@@ -93,6 +83,7 @@ function formatCurrency(amount) {
     return amount.toLocaleString() + "원";
 }
 
+// [1. 일간 수익 데이터 로드]
 function loadProfitData() {
     const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
@@ -119,14 +110,146 @@ function loadProfitData() {
         `;
         tbody.appendChild(row);
     });
+    updateDashboard();
 }
 
-// [addProfit]
+// [2. 주간 수익 데이터 렌더링 - 로컬 연산 모듈]
+function renderWeeklyProfitTable() {
+    const tbody = document.getElementById('weekly-profit-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
 
+    const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
+    const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
+    const currentWeek = getISOWeek(new Date());
+    const currentYear = new Date().getFullYear();
+
+    const weeklyData = savedData.filter(entry => {
+        const entryServer = cleanServerName(entry.server || "서버없음");
+        if (entryServer !== currentServer) return false;
+        if (!entry.date) return true; // 구버전 데이터 호환
+        
+        const entryDate = new Date(entry.date);
+        return entryDate.getFullYear() === currentYear && getISOWeek(entryDate) === currentWeek;
+    });
+
+    if (weeklyData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 15px; color:#666;">이번 주 누적 수익 데이터가 없습니다.</td></tr>`;
+        return;
+    }
+
+    weeklyData.forEach(entry => {
+        const total = (parseInt(entry.price) || 0) * (parseInt(entry.qty) || 0);
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${entry.client}</td>
+            <td>${entry.item}</td>
+            <td>${entry.qty}</td>
+            <td>${total.toLocaleString()}원</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// [3. 월간 수익 데이터 렌더링 - 로컬 연산 모듈]
+function renderMonthlyProfitTable() {
+    const tbody = document.getElementById('monthly-profit-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
+    const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
+    const currentYearMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+
+    const monthlyData = savedData.filter(entry => {
+        const entryServer = cleanServerName(entry.server || "서버없음");
+        if (entryServer !== currentServer) return false;
+        if (!entry.date) return true;
+        return entry.date.substring(0, 7) === currentYearMonth;
+    });
+
+    if (monthlyData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 15px; color:#666;">이번 달 누적 수익 데이터가 없습니다.</td></tr>`;
+        return;
+    }
+
+    monthlyData.forEach(entry => {
+        const total = (parseInt(entry.price) || 0) * (parseInt(entry.qty) || 0);
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${entry.client}</td>
+            <td>${entry.item}</td>
+            <td>${entry.qty}</td>
+            <td>${total.toLocaleString()}원</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// [4. 목표 달성률 렌더링 및 프로그레스 바 적용]
+function renderGoalTable() {
+    const goalBody = document.getElementById('goal-body');
+    if (!goalBody) return;
+    goalBody.innerHTML = ''; 
+
+    const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
+    const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
+    const currentWeek = getISOWeek(new Date());
+    const currentYear = new Date().getFullYear();
+
+    // 클라별 이번 주 누적 수익 계산
+    const clientWeeklyProfits = {};
+    savedData.forEach(entry => {
+        const entryServer = cleanServerName(entry.server || "서버없음");
+        if (entryServer !== currentServer) return;
+        
+        if (entry.date) {
+            const entryDate = new Date(entry.date);
+            if (entryDate.getFullYear() !== currentYear || getISOWeek(entryDate) !== currentWeek) return;
+        }
+
+        const total = (parseInt(entry.price) || 0) * (parseInt(entry.qty) || 0);
+        clientWeeklyProfits[entry.client] = (clientWeeklyProfits[entry.client] || 0) + total;
+    });
+
+    for (let i = 1; i <= 5; i++) {
+        const cName = getClientName(i);
+        const serverKey = getServerKey(`goal_${i}`);
+        const savedGoal = parseInt(localStorage.getItem(serverKey)) || 0;
+        const currentProfit = clientWeeklyProfits[cName] || 0;
+        const percent = savedGoal > 0 ? Math.min(100, Math.floor((currentProfit / savedGoal) * 100)) : 0;
+
+        goalBody.innerHTML += `
+            <tr style="background-color: rgba(255, 255, 255, 0.6);">
+                <td style="color: #000; font-weight: bold; padding: 10px;">${cName}</td>
+                <td style="padding: 10px;">
+                    <input type="number" value="${savedGoal}" onchange="saveGoal(${i}, this.value)" 
+                           style="width: 120px; height: 30px; color: #000; background-color: #fff; border: 1px solid #333; padding: 5px; font-size: 14px; font-weight: bold;"> 원
+                </td>
+                <td style="padding: 10px;">
+                    <div style="font-size: 12px; font-weight: bold; margin-bottom: 3px; color: #333;">
+                        주간 달성: ${currentProfit.toLocaleString()}원 (${percent}%)
+                    </div>
+                    <div style="width: 100%; background: #e0e0e0; border-radius: 10px; height: 12px; overflow: hidden; border: 1px solid #ccc;">
+                        <div style="width: ${percent}%; background: #2ecc71; height: 100%; transition: width 0.3s ease;"></div>
+                    </div>
+                </td>
+            </tr>`;
+    }
+}
+
+function saveGoal(clientIndex, value) { 
+    const serverKey = getServerKey(`goal_${clientIndex}`);
+    localStorage.setItem(serverKey, value); 
+    renderGoalTable();
+    updateDashboard();
+}
+
+// [수익 등록 - Date 필드 스탬프 및 아이템 마스터 등록 기능 포함]
 async function addProfit() {
     const clientSelect = document.querySelector('.client-select');
     const client = clientSelect ? clientSelect.value : "1클라";
-    const item = document.getElementById('item-name').value;
+    const item = document.getElementById('item-name').value.trim();
     const price = document.getElementById('item-price').value;
     const qty = document.getElementById('item-qty').value;
     
@@ -134,17 +257,21 @@ async function addProfit() {
     const currentServer = cleanServerName(rawServer);
 
     if (!item || !price) {
-        alert("아이템명과 단가를 입력해주세요!");
-        return;
+        return; 
     }
 
-    // 로컬 저장소 저장
-    const newEntry = { client, item, qty, price, server: currentServer };
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // 1. 로컬 저장소 저장 (date 속성 추가)
+    const newEntry = { client, item, qty, price, server: currentServer, date: todayStr };
     let savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     savedData.push(newEntry);
     localStorage.setItem('savedProfits', JSON.stringify(savedData));
 
-    // 중앙 DB 전송
+    // 2. 영구 보존용 아이템 마스터 목록에 저장
+    saveItemToMasterList(item);
+
+    // 3. 중앙 DB 전송
     try {
         await fetch(GOOGLE_SHEET_URL, {
             method: 'POST',
@@ -154,7 +281,7 @@ async function addProfit() {
         });
     } catch (e) { console.error("시트 전송 실패:", e); }
 
-    // 로컬 최저가 관리
+    // 4. 로컬 최저가 관리
     let allProfits = JSON.parse(localStorage.getItem('all_user_profits') || "{}");
     const userServerKey = `${currentServer}_${client}`;
     if (!allProfits[userServerKey]) allProfits[userServerKey] = { server: currentServer, items: {} };
@@ -164,19 +291,31 @@ async function addProfit() {
     loadProfitData();
     renderPriceTable(); 
     clearInput();
-    
-    // [추가] 아이템 추가 후 자동완성 목록 갱신
-    updateItemDataList(); 
+    updateItemDataList(); // 자동완성 목록 즉시 업데이트
+    updateDashboard(); // 대시보드 실시간 업데이트
 }
 
 function saveProfitsToLocal() {
     const rows = document.querySelectorAll('#profit-body tr');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
+    const todayStr = new Date().toISOString().split('T')[0];
+
     const savedData = Array.from(rows).map(tr => {
         const c = tr.querySelectorAll('td');
-        return { client: c[0].innerText, item: c[1].innerText, qty: c[2].innerText, price: c[3].getAttribute('data-raw-price') || 0, server: currentServer };
+        const itemName = c[1].innerText.trim();
+        saveItemToMasterList(itemName); 
+
+        return { 
+            client: c[0].innerText, 
+            item: itemName, 
+            qty: c[2].innerText, 
+            price: c[3].getAttribute('data-raw-price') || 0, 
+            server: currentServer,
+            date: todayStr
+        };
     });
     localStorage.setItem('savedProfits', JSON.stringify(savedData));
+    
     let allProfits = {};
     savedData.forEach(entry => {
         const userServerKey = `${currentServer}_${entry.client}`;
@@ -185,12 +324,11 @@ function saveProfitsToLocal() {
     });
     localStorage.setItem('all_user_profits', JSON.stringify(allProfits));
     loadProfitData();
+    updateDashboard();
 }
 
 function editRow(btn) {
     const row = btn.parentElement.parentElement;
-    
-    // 활성화된 모든 드롭다운의 값을 수정 대상 클라이언트로 변경
     const clientSelects = document.querySelectorAll('.client-select');
     clientSelects.forEach(select => {
         select.value = row.cells[0].innerText;
@@ -266,7 +404,6 @@ function initSettings() {
         </div>
     `;
 
-    // ⚙️ [추가된 백엔드 로직] 동적 생성된 백업/가져오기 버튼에 실시간 이벤트 바인딩
     const btnBackup = container.querySelector('#btn-backup');
     const btnRestoreTrigger = container.querySelector('#btn-restore-trigger');
     const restoreFileInput = container.querySelector('#restore-file-input');
@@ -279,10 +416,8 @@ function initSettings() {
                     const key = localStorage.key(i);
                     backupData[key] = localStorage.getItem(key);
                 }
-                if (Object.keys(backupData).length === 0) {
-                    alert('백업할 데이터가 존재하지 않습니다.');
-                    return;
-                }
+                if (Object.keys(backupData).length === 0) return;
+
                 const dataStr = JSON.stringify(backupData, null, 2);
                 const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
                 const today = new Date().toISOString().split('T')[0];
@@ -293,21 +428,22 @@ function initSettings() {
                 link.click();
                 link.remove();
             } catch (e) {
-                alert('백업 도중 오류가 발생했습니다.');
+                console.error('백업 실패:', e);
             }
         });
     }
 
     if (btnRestoreTrigger && restoreFileInput) {
         btnRestoreTrigger.addEventListener('click', () => {
-            if (confirm('데이터를 가져오면 기존의 모든 설정(숙제 진행도, 클라 별칭, 서버 정보 등)이 백업 파일 데이터로 완전히 대체됩니다. 진행하시겠습니까?')) {
-                restoreFileInput.click();
-            }
+            restoreFileInput.click();
         });
 
         restoreFileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) {
+                restoreFileInput.value = '';
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = function(evt) {
@@ -318,7 +454,7 @@ function initSettings() {
                     );
 
                     if (!hasValidKey) {
-                        alert('올바른 거상 데일리 매니저 백업 파일이 아닙니다.');
+                        restoreFileInput.value = '';
                         return;
                     }
 
@@ -327,17 +463,19 @@ function initSettings() {
                         localStorage.setItem(key, importedData[key]);
                     });
 
-                    alert('🎉 데이터 복구가 성공적으로 완료되었습니다! 프로그램을 재시작합니다.');
-                    location.reload();
+                    location.reload(); 
                 } catch (err) {
-                    alert('파일을 읽는 도중 오류가 발생했거나 올바른 데이터 규격이 아닙니다.');
+                    console.error('백업 읽기 실패:', err);
+                    restoreFileInput.value = '';
                 }
             };
             reader.readAsText(file);
         });
     }
 
-    renderConfigList('essential', essentialTasks); renderConfigList('special', specialTasks); renderConfigList('weekly', weeklyTasks);
+    renderConfigList('essential', essentialTasks); 
+    renderConfigList('special', specialTasks); 
+    renderConfigList('weekly', weeklyTasks);
 }
 
 function renderConfigList(type, array) {
@@ -395,7 +533,6 @@ function saveSettings() {
         }
     }
     
-    // 화면에 있는 모든 드롭박스(일일, 주간, 통계 탭 포함)를 전부 찾아서 동시 업데이트
     const clientSelects = document.querySelectorAll('.client-select');
     clientSelects.forEach(select => {
         const currentVal = select.value;
@@ -415,7 +552,6 @@ function saveSettings() {
     }
 }
 
-// toggleStatus: 선택된 클라이언트 전용 저장공간에 저장
 function toggleStatus(checkbox, type, taskName) {
     const span = checkbox.closest('tr').querySelector('.status');
     const isChecked = checkbox.checked;
@@ -424,9 +560,9 @@ function toggleStatus(checkbox, type, taskName) {
     const clientKey = getClientServerKey(`check_${type}_${taskName}`);
     localStorage.setItem(clientKey, isChecked ? "true" : "false");
     updateProgress();
+    updateDashboard(); // 대시보드 실시간 업데이트
 }
 
-// updateProgress: 현재 선택된 클라이언트 전용 완료 상태를 기준으로 개수를 카운팅
 function updateProgress() {
     const ess = getSavedTasks('essentialTasks', DEFAULT_ESSENTIAL);
     const spc = getSavedTasks('specialTasks', DEFAULT_SPECIAL);
@@ -445,7 +581,6 @@ function updateProgress() {
     updateLiveDateTime();
 }
 
-// createTable: 클라이언트 개별 저장 키를 매칭하여 렌더링
 function createTable(tasks, bodyId, type) {
     const body = document.getElementById(bodyId);
     if (!body) return;
@@ -459,26 +594,8 @@ function createTable(tasks, bodyId, type) {
     });
 }
 
-function renderGoalTable() {
-    const goalBody = document.getElementById('goal-body');
-    if (!goalBody) return;
-    goalBody.innerHTML = ''; 
-    for (let i = 1; i <= 5; i++) {
-        const cName = getClientName(i);
-        const serverKey = getServerKey(`goal_${i}`);
-        const savedGoal = localStorage.getItem(serverKey) || 0;
-        goalBody.innerHTML += `<tr style="background-color: #f9f9f9;"><td style="color: #000 !important; font-weight: bold; padding: 10px;">${cName}</td><td style="padding: 10px;"><input type="number" value="${savedGoal}" onchange="saveGoal(${i}, this.value)" style="width: 120px; height: 30px; color: #000 !important; background-color: #fff !important; border: 1px solid #333 !important; padding: 5px !important; font-size: 14px !important; font-weight: bold !important; display: inline-block;"></td><td style="color: #000 !important; padding: 10px;">목표 설정</td></tr>`;
-    }
-}
-
-function saveGoal(clientIndex, value) { 
-    const serverKey = getServerKey(`goal_${clientIndex}`);
-    localStorage.setItem(serverKey, value); 
-    renderGoalTable(); 
-}
-
 function getBlogText(type) {
-    let targetId = type === 'daily' ? 'profit-body' : 'weekly-body-stats';
+    let targetId = type === 'daily' ? 'profit-body' : 'weekly-profit-body';
     let text = `✨ 수익 통계 ✨\n------------------------------\n`;
     document.querySelectorAll(`#${targetId} tr`).forEach(row => { text += `• ${row.cells[0].innerText} | ${row.cells[1].innerText} | ${row.cells[3].innerText}\n`; });
     return text + `------------------------------\n#거상`;
@@ -492,9 +609,9 @@ function refreshMainTables() {
     createTable(getSavedTasks('specialTasks', DEFAULT_SPECIAL), 'optional-body', 'special');
     createTable(getSavedTasks('weeklyTasks', DEFAULT_WEEKLY), 'weekly-body', 'weekly');
     updateProgress();
+    updateDashboard();
 }
 
-// checkAndResetTasks: 날짜/주차 변경 시 모든 클라이언트(1~5클라) 개별 리셋
 function checkAndResetTasks() {
     const today = new Date().toISOString().split('T')[0];
     const serverLastCheckDateKey = getServerKey('lastCheckDate');
@@ -544,7 +661,6 @@ function getISOWeek(date) {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
-// completeDailyTasks: 현재 선택된 클라이언트 전용 일괄 완료
 function completeDailyTasks() {
     ['essential', 'special'].forEach(type => {
         const tasks = getSavedTasks(`${type}Tasks`, type === 'essential' ? DEFAULT_ESSENTIAL : DEFAULT_SPECIAL);
@@ -556,7 +672,6 @@ function completeDailyTasks() {
     refreshMainTables();
 }
 
-// resetDailyTasks: 현재 선택된 클라이언트 전용 일괄 해제
 function resetDailyTasks() {
     ['essential', 'special'].forEach(type => {
         const tasks = getSavedTasks(`${type}Tasks`, type === 'essential' ? DEFAULT_ESSENTIAL : DEFAULT_SPECIAL);
@@ -568,7 +683,6 @@ function resetDailyTasks() {
     refreshMainTables();
 }
 
-// completeWeeklyTasks: 현재 선택된 클라이언트 전용 주간 일괄 완료
 function completeWeeklyTasks() {
     const weeklyTasks = getSavedTasks('weeklyTasks', DEFAULT_WEEKLY);
     weeklyTasks.forEach(t => {
@@ -578,7 +692,6 @@ function completeWeeklyTasks() {
     refreshMainTables();
 }
 
-// resetWeeklyTasks: 현재 선택된 클라이언트 전용 주간 일괄 해제
 function resetWeeklyTasks() {
     const weeklyTasks = getSavedTasks('weeklyTasks', DEFAULT_WEEKLY);
     weeklyTasks.forEach(t => {
@@ -588,52 +701,9 @@ function resetWeeklyTasks() {
     refreshMainTables();
 }
 
-// ★ [수정] window.onload: 모든 .client-select 클래스를 찾아 드롭다운 옵션을 채우고 서로 동기화시킵니다.
-window.onload = () => {
-    checkAndResetTasks();
-
-// [추가] 자동완성 데이터 업데이트 호출
-    updateItemDataList();
-    
-    // 화면에 존재하는 일일, 주간, 통계 드롭박스 전부 가져오기
-    const clientSelects = document.querySelectorAll('.client-select');
-    
-    if (clientSelects.length > 0) {
-        // 모든 드롭박스에 환경설정의 사용자 지정 별명 채우기
-        clientSelects.forEach(select => {
-            select.innerHTML = '';
-            for (let i = 1; i <= 5; i++) {
-                select.innerHTML += `<option value="${getClientName(i)}">${getClientName(i)}</option>`;
-            }
-            
-            // 어느 한 드롭박스(통계든 임무든) 값이 바뀌면 다른 드롭박스 전부 똑같이 동기화
-            select.addEventListener('change', (e) => {
-                const targetValue = e.target.value;
-                
-                clientSelects.forEach(otherSelect => {
-                    otherSelect.value = targetValue;
-                });
-                
-                refreshMainTables();
-                loadProfitData();
-            });
-        });
-    }
-    
-    // 초기 화면 렌더링
-    refreshMainTables(); 
-    loadProfitData(); 
-    renderGoalTable();
-    
-    // 시계 구동
-    updateLiveDateTime(); 
-    setInterval(updateLiveDateTime, 1000);
-};
-
-// [exe 환경 호환 및 리다이렉트 추적형 최저가 조회 함수]
+// 최저가 연동 함수
 async function renderPriceTable() {
     const rawSelectedServer = localStorage.getItem('selectedServer') || "서버없음";
-    
     const displayEl = document.getElementById('display-server-name');
     if(displayEl) {
         const uiName = String(rawSelectedServer).replace(/\\/g, "").replace(/\"/g, "");
@@ -651,18 +721,10 @@ async function renderPriceTable() {
             method: 'GET',
             mode: 'cors',
             redirect: 'follow', 
-            headers: {
-                'Accept': 'application/json'
-            }
+            headers: { 'Accept': 'application/json' }
         });
         
         const data = await response.json(); 
-        
-        console.log("=== [최저가 DB 조회 디버깅] ===");
-        console.log("■ 프로그램 선택 서버(원본):", rawSelectedServer);
-        console.log("■ 프로그램 선택 서버(정제):", currentServerClean);
-        console.log("■ 구글 시트 수신 원본 데이터 존재 여부:", Array.isArray(data));
-
         let lowestPrices = {};
 
         if (!data || !Array.isArray(data)) {
@@ -674,15 +736,10 @@ async function renderPriceTable() {
             const row = data[i];
             if (!row) continue;
 
-            let srv = "";
-            let itm = "";
-            let prcRaw = "";
-
+            let srv = "", itm = "", prcRaw = "";
             if (Array.isArray(row)) {
                 if (i === 0) continue; 
-                srv = row[0];
-                itm = row[1];
-                prcRaw = row[2];
+                srv = row[0]; itm = row[1]; prcRaw = row[2];
             } else if (typeof row === 'object') {
                 srv = row["서버"] || row["server"] || row[Object.keys(row)[0]];
                 itm = row["아이템"] || row["item"] || row[Object.keys(row)[1]];
@@ -703,9 +760,6 @@ async function renderPriceTable() {
             }
         }
 
-        console.log("■ 매칭된 서버별 최저가 결과:", lowestPrices);
-        console.log("===============================");
-
         tbody.innerHTML = "";
         const keys = Object.keys(lowestPrices);
         if (keys.length === 0) {
@@ -717,18 +771,25 @@ async function renderPriceTable() {
         }
     } catch (e) {
         console.error("최저가 조회 중 오류 발생:", e);
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#e57373; padding: 15px;">서버 연결 오류가 발생했습니다. (F12 콘솔 확인)</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#e57373; padding: 15px;">서버 연결 오류가 발생했습니다.</td></tr>`;
     }
 }
 
+// showProfitTab: 탭 클릭 시 각 통계/목표 렌더링 함수 실행
 function showProfitTab(tabName, event) {
     const buttons = document.querySelectorAll('.tab-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
     if (event) event.currentTarget.classList.add('active');
+    
     ['daily', 'weekly', 'monthly', 'goal', 'price'].forEach(name => {
         const view = document.getElementById(name + '-view');
         if (view) view.style.display = (name === tabName) ? 'block' : 'none';
     });
+
+    if (tabName === 'daily') loadProfitData();
+    if (tabName === 'weekly') renderWeeklyProfitTable();
+    if (tabName === 'monthly') renderMonthlyProfitTable();
+    if (tabName === 'goal') renderGoalTable();
     if (tabName === 'price') renderPriceTable(); 
 }
 
@@ -741,17 +802,46 @@ function showSection(id) {
     }
 }
 
-// [데이터 계산기] 수익과 숙제 완료율을 로컬 데이터로 실시간 계산
+// [대시보드 실시간 연동 처리]
 function updateDashboard() {
-    // 1. 수익 계산
     const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
-    const totalProfit = savedData.reduce((acc, curr) => acc + (parseInt(curr.price) * parseInt(curr.qty)), 0);
-    const profitEl = document.getElementById('today-total-profit');
-    if (profitEl) profitEl.innerText = totalProfit.toLocaleString() + '원';
+    const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentWeek = getISOWeek(new Date());
+    const currentYear = new Date().getFullYear();
 
-    // 2. 완료율 계산
-    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-    const checked = document.querySelectorAll('input[type="checkbox"]:checked');
+    // 1. 오늘 수익 계산
+    const todayProfit = savedData.filter(entry => {
+        return cleanServerName(entry.server) === currentServer && entry.date === todayStr;
+    }).reduce((acc, curr) => acc + (parseInt(curr.price || 0) * parseInt(curr.qty || 0)), 0);
+
+    const profitEl = document.getElementById('today-total-profit');
+    if (profitEl) profitEl.innerText = todayProfit.toLocaleString() + '원';
+
+    // 2. 주간 목표 및 누적 수익 계산
+    let totalWeeklyGoal = 0;
+    for (let i = 1; i <= 5; i++) {
+        totalWeeklyGoal += parseInt(localStorage.getItem(getServerKey(`goal_${i}`)) || 0);
+    }
+
+    const currentWeekProfit = savedData.filter(entry => {
+        if (cleanServerName(entry.server) !== currentServer) return false;
+        if (!entry.date) return true;
+        const entryDate = new Date(entry.date);
+        return entryDate.getFullYear() === currentYear && getISOWeek(entryDate) === currentWeek;
+    }).reduce((acc, curr) => acc + (parseInt(curr.price || 0) * parseInt(curr.qty || 0)), 0);
+
+    const goalPercent = totalWeeklyGoal > 0 ? Math.min(100, Math.floor((currentWeekProfit / totalWeeklyGoal) * 100)) : 0;
+    
+    const goalBarFill = document.getElementById('weekly-goal-bar-fill');
+    const goalText = document.getElementById('weekly-goal-text');
+    if (goalBarFill) goalBarFill.style.width = `${goalPercent}%`;
+    if (goalText) goalText.innerText = `${goalPercent}%`;
+
+    // 3. 숙제 완료율 계산
+    const checkboxes = document.querySelectorAll('#essential-body input[type="checkbox"], #optional-body input[type="checkbox"]');
+    const checked = document.querySelectorAll('#essential-body input[type="checkbox"]:checked, #optional-body input[type="checkbox"]:checked');
+    
     if (checkboxes.length > 0) {
         const percent = Math.floor((checked.length / checkboxes.length) * 100);
         const barFill = document.getElementById('today-progress-bar-fill');
@@ -761,32 +851,34 @@ function updateDashboard() {
     }
 }
 
-// 기존 refreshMainTables 끝에 호출 추가
-const originalRefresh = refreshMainTables;
-refreshMainTables = function() {
-    originalRefresh();
-    updateDashboard();
-};
+// 영구 보존용 아이템 마스터 목록 저장 함수
+function saveItemToMasterList(itemName) {
+    if (!itemName) return;
+    let masterList = JSON.parse(localStorage.getItem('itemMasterList') || '[]');
+    if (!masterList.includes(itemName)) {
+        masterList.push(itemName);
+        localStorage.setItem('itemMasterList', JSON.stringify(masterList));
+    }
+}
 
-// [자동완성 목록 업데이트 함수]
+// 일일 통계 데이터가 초기화되어도 자동완성이 유지되는 연동 함수
 function updateItemDataList() {
     const dataList = document.getElementById('item-list');
     if (!dataList) return;
 
-    dataList.innerHTML = ''; // 기존 목록 초기화
+    dataList.innerHTML = '';
+    const itemSet = new Set();
 
-    // 나의 판매가 현황(all_user_profits)에서 저장된 아이템 목록을 추출
+    const masterList = JSON.parse(localStorage.getItem('itemMasterList') || '[]');
+    masterList.forEach(item => itemSet.add(item));
+
     const allProfits = JSON.parse(localStorage.getItem('all_user_profits') || "{}");
-    const itemSet = new Set(); // 중복 방지용
-
-    // 저장된 모든 아이템들을 찾아 Set에 담기
     for (const key in allProfits) {
         if (allProfits[key].items) {
             Object.keys(allProfits[key].items).forEach(itemName => itemSet.add(itemName));
         }
     }
 
-    // datalist에 옵션 추가
     itemSet.forEach(itemName => {
         const option = document.createElement('option');
         option.value = itemName;
@@ -794,24 +886,132 @@ function updateItemDataList() {
     });
 }
 
-const { ipcRenderer } = require('electron');
-
-const pinBtn = document.getElementById('pin-btn');
-let isAlwaysOnTop = true; // 기본적으로 처음엔 켜져 있다고 가정
-
-pinBtn.addEventListener('click', () => {
-    // 상태 반전
-    isAlwaysOnTop = !isAlwaysOnTop;
+// window.onload 이벤트
+window.onload = () => {
+    checkAndResetTasks();
+    updateItemDataList();
     
-    // UI 변경 (active 클래스 토글)
-    if (isAlwaysOnTop) {
-        pinBtn.classList.add('active');
-        pinBtn.innerText = '📌 항상 위';
-    } else {
-        pinBtn.classList.remove('active');
-        pinBtn.innerText = '❌ 항상 위'; // 혹은 📍 핀 아이콘으로 대체 가능
+    const clientSelects = document.querySelectorAll('.client-select');
+    if (clientSelects.length > 0) {
+        clientSelects.forEach(select => {
+            select.innerHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                select.innerHTML += `<option value="${getClientName(i)}">${getClientName(i)}</option>`;
+            }
+            
+            select.addEventListener('change', (e) => {
+                const targetValue = e.target.value;
+                clientSelects.forEach(otherSelect => {
+                    otherSelect.value = targetValue;
+                });
+                
+                refreshMainTables();
+                loadProfitData();
+            });
+        });
     }
     
-    // 메인 프로세스(main.js)로 온탑 상태 전송
-    ipcRenderer.send('toggle-always-on-top', isAlwaysOnTop);
-});
+    refreshMainTables(); 
+    loadProfitData(); 
+    renderGoalTable();
+    updateDashboard();
+    
+    updateLiveDateTime(); 
+    setInterval(updateLiveDateTime, 1000);
+};
+
+// [Electron 항상 위 고정 기능 - 마지막 상태 기억]
+const { ipcRenderer } = require('electron');
+const pinBtn = document.getElementById('pin-btn');
+
+if (pinBtn) {
+    const savedAlwaysOnTop = localStorage.getItem('alwaysOnTopState') === 'true';
+
+    function applyAlwaysOnTopState(isTop) {
+        if (isTop) {
+            pinBtn.classList.add('active');
+            pinBtn.innerText = '📌 항상 위';
+        } else {
+            pinBtn.classList.remove('active');
+            pinBtn.innerText = '❌ 항상 위';
+        }
+        ipcRenderer.send('toggle-always-on-top', isTop);
+    }
+
+    applyAlwaysOnTopState(savedAlwaysOnTop);
+
+    pinBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        const currentActive = pinBtn.classList.contains('active');
+        const nextState = !currentActive;
+        
+        localStorage.setItem('alwaysOnTopState', nextState ? 'true' : 'false');
+        applyAlwaysOnTopState(nextState);
+    });
+
+
+// 1. 현재 내 프로그램의 버전 (업데이트 패치할 때 올려줍니다)
+const CURRENT_APP_VERSION = "1.2.4"; 
+
+// 2. 깃허브에 올라가 있는 update.json의 Raw 파일 주소
+// ✅ 올바른 작성법 (raw 주소)
+const UPDATE_CHECK_URL = "https://raw.githubusercontent.com/whddns4754/gersang-daily-manager/main/update.json";
+
+// 버전 체크 및 팝업 출력 함수
+async function checkForUpdates() {
+    try {
+        const response = await fetch(`${UPDATE_CHECK_URL}?_=${new Date().getTime()}`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        // 프로그램 버전보다 깃허브 버전이 높으면 팝업 생성
+        if (isNewerVersion(CURRENT_APP_VERSION, data.latestVersion)) {
+            showUpdateNotice(data);
+        }
+    } catch (error) {
+        console.log("업데이트 체크 스킵:", error);
+    }
+}
+
+// 버전 단순 비교 (1.0.0 < 1.0.1)
+function isNewerVersion(current, latest) {
+    const cParts = current.split('.').map(Number);
+    const lParts = latest.split('.').map(Number);
+    for (let i = 0; i < Math.max(cParts.length, lParts.length); i++) {
+        const c = cParts[i] || 0;
+        const l = lParts[i] || 0;
+        if (l > c) return true;
+        if (l < c) return false;
+    }
+    return false;
+}
+
+// 팝업 창 UI 동적 생성 (설명 포함)
+function showUpdateNotice(data) {
+    const modalHtml = `
+        <div id="update-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 99999;">
+            <div style="background: #1e1e1e; color: #fff; padding: 25px; border-radius: 12px; width: 420px; border: 1px solid #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.4);">
+                <h3 style="margin: 0 0 10px 0; color: #ffd700; font-size: 18px;">🔔 새로운 업데이트가 있습니다!</h3>
+                <div style="font-size: 13px; color: #aaa; margin-bottom: 15px;">
+                    <span>현재 버전: v${CURRENT_APP_VERSION}</span> ➔ <b style="color: #2ecc71;">최신 버전: v${data.latestVersion}</b>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); max-height: 180px; overflow-y: auto; margin-bottom: 20px;">
+                    <div style="font-size: 13px; font-weight: bold; color: #ffd700; margin-bottom: 8px;">📝 업데이트 변경 내용</div>
+                    <ul style="margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; color: #ddd;">
+                        ${data.changelog.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; gap: 10px;">
+                    <button onclick="document.getElementById('update-modal').remove()" style="flex: 1; padding: 10px; background: #444; color: #fff; border: none; border-radius: 5px; cursor: pointer;">나중에 하기</button>
+                    <button onclick="window.open('${data.downloadUrl}')" style="flex: 1.5; padding: 10px; background: #27ae60; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">업데이트 받기</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+}
