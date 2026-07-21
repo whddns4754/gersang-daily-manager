@@ -83,16 +83,21 @@ function formatCurrency(amount) {
     return amount.toLocaleString() + "원";
 }
 
-// [1. 일간 수익 데이터 로드]
+// [1. 일간 수익 데이터 로드 - 수정 완료: 오늘 날짜 데이터만 필터링]
 function loadProfitData() {
     const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
+    const todayStr = new Date().toISOString().split('T')[0]; // 오늘 날짜 (YYYY-MM-DD)
     const tbody = document.getElementById('profit-body');
     if (!tbody) return;
     tbody.innerHTML = ''; 
+    
     savedData.forEach((entry) => {
         const entryServer = cleanServerName(entry.server || "서버없음");
         if (entryServer !== currentServer) return;
+
+        // ★ 오늘 날짜가 아닌 과거 데이터는 일일 통계 표에서 제외 (주간/월간 통계에는 유지됨)
+        if (entry.date && entry.date !== todayStr) return;
 
         const unitPrice = parseInt(entry.price) || 0;
         const quantity = parseInt(entry.qty) || 0;
@@ -295,12 +300,22 @@ async function addProfit() {
     updateDashboard(); // 대시보드 실시간 업데이트
 }
 
+// [수정 완료: 테이블 인라인 수정/삭제 시 과거 데이터 보존 처리]
 function saveProfitsToLocal() {
     const rows = document.querySelectorAll('#profit-body tr');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
     const todayStr = new Date().toISOString().split('T')[0];
 
-    const savedData = Array.from(rows).map(tr => {
+    let savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
+    
+    // 오늘 날짜가 아니거나 다른 서버인 과거 데이터는 유지
+    let otherData = savedData.filter(entry => {
+        const entryServer = cleanServerName(entry.server || "서버없음");
+        return entryServer !== currentServer || (entry.date && entry.date !== todayStr);
+    });
+
+    // 화면(오늘 일일 통계)에 남아있는 항목들을 오늘 날짜 데이터로 추가
+    const currentDailyData = Array.from(rows).map(tr => {
         const c = tr.querySelectorAll('td');
         const itemName = c[1].innerText.trim();
         saveItemToMasterList(itemName); 
@@ -314,10 +329,12 @@ function saveProfitsToLocal() {
             date: todayStr
         };
     });
-    localStorage.setItem('savedProfits', JSON.stringify(savedData));
+
+    const updatedData = [...otherData, ...currentDailyData];
+    localStorage.setItem('savedProfits', JSON.stringify(updatedData));
     
     let allProfits = {};
-    savedData.forEach(entry => {
+    updatedData.forEach(entry => {
         const userServerKey = `${currentServer}_${entry.client}`;
         if (!allProfits[userServerKey]) allProfits[userServerKey] = { server: currentServer, items: {} };
         allProfits[userServerKey].items[entry.item] = parseInt(entry.price) || 0;
@@ -918,6 +935,9 @@ window.onload = () => {
     
     updateLiveDateTime(); 
     setInterval(updateLiveDateTime, 1000);
+
+    // 업데이트 체크 실행
+    checkForUpdates();
 };
 
 // [Electron 항상 위 고정 기능 - 마지막 상태 기억]
@@ -949,13 +969,12 @@ if (pinBtn) {
         localStorage.setItem('alwaysOnTopState', nextState ? 'true' : 'false');
         applyAlwaysOnTopState(nextState);
     });
-
+}
 
 // 1. 현재 내 프로그램의 버전 (업데이트 패치할 때 올려줍니다)
 const CURRENT_APP_VERSION = "1.2.4"; 
 
 // 2. 깃허브에 올라가 있는 update.json의 Raw 파일 주소
-// ✅ 올바른 작성법 (raw 주소)
 const UPDATE_CHECK_URL = "https://raw.githubusercontent.com/whddns4754/gersang-daily-manager/main/update.json";
 
 // 버전 체크 및 팝업 출력 함수
@@ -1013,5 +1032,4 @@ function showUpdateNotice(data) {
         </div>
     `;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
 }
