@@ -972,7 +972,7 @@ if (pinBtn) {
 }
 
 // 1. 현재 내 프로그램의 버전 (업데이트 패치할 때 올려줍니다)
-const CURRENT_APP_VERSION = "1.2.4"; 
+const CURRENT_APP_VERSION = "1.2.5"; 
 
 // 2. 깃허브에 올라가 있는 update.json의 Raw 파일 주소
 const UPDATE_CHECK_URL = "https://raw.githubusercontent.com/whddns4754/gersang-daily-manager/main/update.json";
