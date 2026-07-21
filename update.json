@@ -1,12 +1,9 @@
 {
-  "latestVersion": "1.2.4",
-  "releaseDate": "2026-07-20",
+  "latestVersion": "1.2.5",
+  "releaseDate": "2026-07-21",
   "changelog": [
-    "📊 대시보드 개선 (수익, 목표 달성률, 숙제 진행 상황 한눈에 확인)",
-    "🛠️ 데이터 저장 / 백업 관련 오류 해결 및 초기화 시 기본 목록 보존",
-    "📌 '항상 위' 고정 모드 설정 기억 기능 추가",
-    "📅 주간 / 월간 목표 금액 설정 및 실시간 게이지 연동",
-    "🔔 신규 업데이트 자동 감지 및 패치 노트 알림 팝업 추가"
+    "긴급수정 : 일일통계 데이터가 00시 이후 초기화돼지않는 현상 수정",
+   
   ],
   "downloadUrl": "https://github.com/whddns4754/gersang-daily-manager/releases"
 }
