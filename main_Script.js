@@ -630,7 +630,7 @@ function initSettings() {
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <span style="font-size: 12px; color: #aaa;">편집 대상:</span>
                     <select onchange="switchConfigClient(this.value)" style="padding: 4px 8px; background: #ff9800; color: white; font-weight: bold; border-radius: 4px; border: none; cursor: pointer; outline: none;">
-                        ${[1,2,3,4,5].map(i => `<option value="${i}" ${i === currentConfigClientIndex ? 'selected' : ''}>${getClientName(i)}</option>`).join('')}
+                        ${[1,2,3,4,5].map(i => `<option value="${i}" ${i === currentConfigClientIndex ? 'selected' : ''}>${getClientName(i)}</option>`)}
                     </select>
                     <button onclick="copyClient1ConfigToAll()" style="padding: 5px 10px; background-color: #0284c7; color: white; border: 1px solid #38bdf8; font-weight: bold; border-radius: 4px; cursor: pointer;">
                         📋 1클라 설정 전체 복사
@@ -874,6 +874,9 @@ function refreshMainTables() {
     updateDashboard();
 }
 
+// ==========================================
+// [수정 완료] 날짜 변경 시 숙제 체크 및 일간 수익 통계 자동 초기화
+// ==========================================
 function checkAndResetTasks() {
     const today = new Date().toISOString().split('T')[0];
     const serverLastCheckDateKey = getServerKey('lastCheckDate');
@@ -883,6 +886,7 @@ function checkAndResetTasks() {
         const rawSelectedServer = localStorage.getItem('selectedServer') || "공통";
         const cleanServer = cleanServerName(rawSelectedServer);
         
+        // 1. 일일 숙제 체크 해제
         for (let i = 1; i <= 5; i++) {
             const clientName = getClientName(i);
             ['essential', 'special'].forEach(type => {
@@ -893,6 +897,10 @@ function checkAndResetTasks() {
                 });
             });
         }
+
+        // 2. [추가] 날짜 변경 시 일간 수익 통계(savedProfits) 자동 삭제
+        localStorage.removeItem('savedProfits');
+
         localStorage.setItem(serverLastCheckDateKey, today);
     }
     
