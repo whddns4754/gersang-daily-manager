@@ -1,3 +1,13 @@
+// ==========================================
+// [factory.js 모듈 로드 처리]
+// ==========================================
+let FactoryManager;
+try {
+    FactoryManager = require('./factory.js');
+} catch (e) {
+    FactoryManager = window.FactoryManager;
+}
+
 // [1. 데이터 기본값 설정]
 const DEFAULT_ESSENTIAL = [
     "주막임무-일반", "주막임무-특수", "주막임무-전직", "주막임무-고고학",
@@ -13,12 +23,65 @@ const DEFAULT_WEEKLY = [
     "무도장 도전모드", "혈투의전장", "기묘한설화", "빛의 시험"
 ];
 
-// ★ [구글 시트 연동 설정]
+const DEFAULT_COMMON_ITEMS = [
+    "시간의금화", "시간의은화", "영웅의금화", "영웅의은화", 
+    "영웅의영혼석", "시간의가루", "봉인된힘의파편"
+];
+
 const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyB2pSo-rNWz_WctvW3bz9Dru8ljF2aWYV0rzGwP7dkS_U5NPZhN8pZru0UXMi2TadwGA/exec';
 
 let myMonthlyChart = null;
+let currentConfigClientIndex = 1;
 
-// ★ [서버 이름 정제 유틸리티]
+let priceTableState = {
+    currentPage: 1,
+    pageSize: 10,
+    validDays: 7,
+    allData: []
+};
+
+function formatRelativeTime(dateInput) {
+    if (!dateInput) return "등록일 미상";
+    
+    const targetDate = new Date(dateInput);
+    if (isNaN(targetDate.getTime())) return String(dateInput);
+
+    const now = new Date();
+    const diffMs = now - targetDate;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    const hours = String(targetDate.getHours()).padStart(2, '0');
+    const minutes = String(targetDate.getMinutes()).padStart(2, '0');
+    const timeStr = `${hours}:${minutes}`;
+
+    if (diffDays === 0) {
+        return `오늘 ${timeStr}`;
+    } else if (diffDays === 1) {
+        return `어제 ${timeStr}`;
+    } else if (diffDays < 7) {
+        return `${diffDays}일 전`;
+    } else {
+        const month = targetDate.getMonth() + 1;
+        const day = targetDate.getDate();
+        return `${month}/${day} ${timeStr}`;
+    }
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast-msg toast-${type}`;
+    toast.innerText = message;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3500);
+}
+
 function cleanServerName(serverName) {
     if (!serverName) return "";
     let cleaned = String(serverName);
@@ -29,35 +92,113 @@ function cleanServerName(serverName) {
     return cleaned;
 }
 
-// [서버별 고유 키 생성 도우미]
 function getServerKey(key) {
     const rawSelectedServer = localStorage.getItem('selectedServer') || "공통";
     const cleanServer = cleanServerName(rawSelectedServer);
     return `${cleanServer}_${key}`;
 }
 
-// ★ [클라이언트별 격리 키 생성 도우미]
 function getClientServerKey(key) {
     const rawSelectedServer = localStorage.getItem('selectedServer') || "공통";
     const cleanServer = cleanServerName(rawSelectedServer);
     const clientSelect = document.querySelector('.client-select');
-    const clientName = clientSelect ? clientSelect.value : "1클라";
+    const clientName = clientSelect ? clientSelect.value : getClientName(1);
     return `${cleanServer}_${clientName}_${key}`;
 }
 
-// [데이터 로드 유틸리티]
-function getSavedTasks(key, defaultArray) {
-    const serverKey = getServerKey(key);
-    const saved = localStorage.getItem(serverKey);
-    return saved ? JSON.parse(saved) : defaultArray;
-}
 function getClientName(index) { 
     const serverKey = getServerKey(`clientName_${index}`);
     return localStorage.getItem(serverKey) || `${index}클라`; 
 }
+
 function getCurrencyUnit() { return localStorage.getItem('currencyUnit') || 'won'; }
 
-// [실시간 디지털시계 엔진]
+function getSavedTasks(key, defaultArray) {
+    const rawSelectedServer = localStorage.getItem('selectedServer') || "공통";
+    const cleanServer = cleanServerName(rawSelectedServer);
+    
+    const clientSelect = document.querySelector('.client-select');
+    const currentClientName = clientSelect ? clientSelect.value : getClientName(1);
+    
+    const clientSpecificKey = `${cleanServer}_${currentClientName}_${key}`;
+    const clientSaved = localStorage.getItem(clientSpecificKey);
+    if (clientSaved) return JSON.parse(clientSaved);
+
+    const serverKey = getServerKey(key);
+    const saved = localStorage.getItem(serverKey);
+    return saved ? JSON.parse(saved) : defaultArray;
+}
+
+function getConfigTasks(type) {
+    const key = `${type}Tasks`;
+    const clientName = getClientName(currentConfigClientIndex);
+    const rawSelectedServer = localStorage.getItem('selectedServer') || "공통";
+    const cleanServer = cleanServerName(rawSelectedServer);
+    
+    const clientSpecificKey = `${cleanServer}_${clientName}_${key}`;
+    const saved = localStorage.getItem(clientSpecificKey);
+    
+    if (saved) return JSON.parse(saved);
+    
+    const defaultKey = getServerKey(key);
+    const commonSaved = localStorage.getItem(defaultKey);
+    const defArr = type === 'essential' ? DEFAULT_ESSENTIAL : (type === 'special' ? DEFAULT_SPECIAL : DEFAULT_WEEKLY);
+    return commonSaved ? JSON.parse(commonSaved) : defArr;
+}
+
+function saveConfigTasks(type, array) {
+    const key = `${type}Tasks`;
+    const clientName = getClientName(currentConfigClientIndex);
+    const rawSelectedServer = localStorage.getItem('selectedServer') || "공통";
+    const cleanServer = cleanServerName(rawSelectedServer);
+    
+    const clientSpecificKey = `${cleanServer}_${clientName}_${key}`;
+    localStorage.setItem(clientSpecificKey, JSON.stringify(array));
+}
+
+function copyClient1ConfigToAll() {
+    const rawSelectedServer = localStorage.getItem('selectedServer') || "공통";
+    const cleanServer = cleanServerName(rawSelectedServer);
+    const c1Name = getClientName(1);
+
+    const types = ['essential', 'special', 'weekly'];
+    const c1Data = {};
+
+    types.forEach(type => {
+        const key = `${type}Tasks`;
+        const c1Key = `${cleanServer}_${c1Name}_${key}`;
+        const saved = localStorage.getItem(c1Key);
+        const defArr = type === 'essential' ? DEFAULT_ESSENTIAL : (type === 'special' ? DEFAULT_SPECIAL : DEFAULT_WEEKLY);
+        
+        if (saved) {
+            c1Data[type] = JSON.parse(saved);
+        } else {
+            const commonSaved = localStorage.getItem(getServerKey(key));
+            c1Data[type] = commonSaved ? JSON.parse(commonSaved) : defArr;
+        }
+    });
+
+    for (let i = 1; i <= 5; i++) {
+        const targetClientName = getClientName(i);
+        types.forEach(type => {
+            const key = `${type}Tasks`;
+            const targetKey = `${cleanServer}_${targetClientName}_${key}`;
+            localStorage.setItem(targetKey, JSON.stringify(c1Data[type]));
+        });
+    }
+
+    switchConfigClient(currentConfigClientIndex);
+    refreshMainTables();
+    showToast("📋 1클라의 숙제 설정이 모든 클라이언트에 복사 되었습니다!");
+}
+
+function switchConfigClient(clientIdx) {
+    currentConfigClientIndex = parseInt(clientIdx);
+    renderConfigList('essential', getConfigTasks('essential'));
+    renderConfigList('special', getConfigTasks('special'));
+    renderConfigList('weekly', getConfigTasks('weekly'));
+}
+
 function updateLiveDateTime() {
     const dateEl = document.getElementById('current-date');
     const timeEl = document.getElementById('current-time');
@@ -72,7 +213,6 @@ function updateLiveDateTime() {
     if (timeEl) timeEl.innerText = `${hh}:${min}:${ss}`;
 }
 
-// [수익 데이터 및 포맷팅]
 function formatCurrency(amount) {
     amount = parseInt(amount) || 0;
     if (getCurrencyUnit() === 'billion') {
@@ -83,21 +223,15 @@ function formatCurrency(amount) {
     return amount.toLocaleString() + "원";
 }
 
-// [1. 일간 수익 데이터 로드 - 수정 완료: 오늘 날짜 데이터만 필터링]
 function loadProfitData() {
     const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
-    const todayStr = new Date().toISOString().split('T')[0]; // 오늘 날짜 (YYYY-MM-DD)
     const tbody = document.getElementById('profit-body');
     if (!tbody) return;
     tbody.innerHTML = ''; 
-    
     savedData.forEach((entry) => {
         const entryServer = cleanServerName(entry.server || "서버없음");
         if (entryServer !== currentServer) return;
-
-        // ★ 오늘 날짜가 아닌 과거 데이터는 일일 통계 표에서 제외 (주간/월간 통계에는 유지됨)
-        if (entry.date && entry.date !== todayStr) return;
 
         const unitPrice = parseInt(entry.price) || 0;
         const quantity = parseInt(entry.qty) || 0;
@@ -118,7 +252,6 @@ function loadProfitData() {
     updateDashboard();
 }
 
-// [2. 주간 수익 데이터 렌더링 - 로컬 연산 모듈]
 function renderWeeklyProfitTable() {
     const tbody = document.getElementById('weekly-profit-body');
     if (!tbody) return;
@@ -126,16 +259,25 @@ function renderWeeklyProfitTable() {
 
     const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
-    const currentWeek = getISOWeek(new Date());
-    const currentYear = new Date().getFullYear();
+    
+    const now = new Date();
+    const dayOfWeek = now.getDay(); 
+    const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    
+    const monday = new Date(now.setDate(diffToMonday));
+    monday.setHours(0, 0, 0, 0);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
 
     const weeklyData = savedData.filter(entry => {
         const entryServer = cleanServerName(entry.server || "서버없음");
         if (entryServer !== currentServer) return false;
-        if (!entry.date) return true; // 구버전 데이터 호환
+        if (!entry.date) return true; 
         
         const entryDate = new Date(entry.date);
-        return entryDate.getFullYear() === currentYear && getISOWeek(entryDate) === currentWeek;
+        return entryDate >= monday && entryDate <= sunday;
     });
 
     if (weeklyData.length === 0) {
@@ -143,20 +285,37 @@ function renderWeeklyProfitTable() {
         return;
     }
 
+    const aggregated = {};
     weeklyData.forEach(entry => {
-        const total = (parseInt(entry.price) || 0) * (parseInt(entry.qty) || 0);
+        const key = `${entry.client}_${entry.item}`;
+        const qty = parseInt(entry.qty) || 0;
+        const price = parseInt(entry.price) || 0;
+        const total = qty * price;
+
+        if (!aggregated[key]) {
+            aggregated[key] = {
+                client: entry.client,
+                item: entry.item,
+                qty: 0,
+                totalPrice: 0
+            };
+        }
+        aggregated[key].qty += qty;
+        aggregated[key].totalPrice += total;
+    });
+
+    Object.values(aggregated).forEach(data => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${entry.client}</td>
-            <td>${entry.item}</td>
-            <td>${entry.qty}</td>
-            <td>${total.toLocaleString()}원</td>
+            <td>${data.client}</td>
+            <td>${data.item}</td>
+            <td>${data.qty}</td>
+            <td>${data.totalPrice.toLocaleString()}원</td>
         `;
         tbody.appendChild(row);
     });
 }
 
-// [3. 월간 수익 데이터 렌더링 - 로컬 연산 모듈]
 function renderMonthlyProfitTable() {
     const tbody = document.getElementById('monthly-profit-body');
     if (!tbody) return;
@@ -164,13 +323,21 @@ function renderMonthlyProfitTable() {
 
     const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
-    const currentYearMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); 
+
+    const startOfMonth = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
 
     const monthlyData = savedData.filter(entry => {
         const entryServer = cleanServerName(entry.server || "서버없음");
         if (entryServer !== currentServer) return false;
-        if (!entry.date) return true;
-        return entry.date.substring(0, 7) === currentYearMonth;
+        if (!entry.date) return true; 
+        
+        const entryDate = new Date(entry.date);
+        return entryDate >= startOfMonth && entryDate <= endOfMonth;
     });
 
     if (monthlyData.length === 0) {
@@ -178,20 +345,37 @@ function renderMonthlyProfitTable() {
         return;
     }
 
+    const aggregated = {};
     monthlyData.forEach(entry => {
-        const total = (parseInt(entry.price) || 0) * (parseInt(entry.qty) || 0);
+        const key = `${entry.client}_${entry.item}`;
+        const qty = parseInt(entry.qty) || 0;
+        const price = parseInt(entry.price) || 0;
+        const total = qty * price;
+
+        if (!aggregated[key]) {
+            aggregated[key] = {
+                client: entry.client,
+                item: entry.item,
+                qty: 0,
+                totalPrice: 0
+            };
+        }
+        aggregated[key].qty += qty;
+        aggregated[key].totalPrice += total;
+    });
+
+    Object.values(aggregated).forEach(data => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${entry.client}</td>
-            <td>${entry.item}</td>
-            <td>${entry.qty}</td>
-            <td>${total.toLocaleString()}원</td>
+            <td>${data.client}</td>
+            <td>${data.item}</td>
+            <td>${data.qty}</td>
+            <td>${data.totalPrice.toLocaleString()}원</td>
         `;
         tbody.appendChild(row);
     });
 }
 
-// [4. 목표 달성률 렌더링 및 프로그레스 바 적용]
 function renderGoalTable() {
     const goalBody = document.getElementById('goal-body');
     if (!goalBody) return;
@@ -199,29 +383,32 @@ function renderGoalTable() {
 
     const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
-    const currentWeek = getISOWeek(new Date());
-    const currentYear = new Date().getFullYear();
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const startOfMonth = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
 
-    // 클라별 이번 주 누적 수익 계산
-    const clientWeeklyProfits = {};
+    const clientMonthlyProfits = {};
     savedData.forEach(entry => {
         const entryServer = cleanServerName(entry.server || "서버없음");
         if (entryServer !== currentServer) return;
         
         if (entry.date) {
             const entryDate = new Date(entry.date);
-            if (entryDate.getFullYear() !== currentYear || getISOWeek(entryDate) !== currentWeek) return;
+            if (entryDate < startOfMonth || entryDate > endOfMonth) return;
         }
 
         const total = (parseInt(entry.price) || 0) * (parseInt(entry.qty) || 0);
-        clientWeeklyProfits[entry.client] = (clientWeeklyProfits[entry.client] || 0) + total;
+        clientMonthlyProfits[entry.client] = (clientMonthlyProfits[entry.client] || 0) + total;
     });
 
     for (let i = 1; i <= 5; i++) {
         const cName = getClientName(i);
         const serverKey = getServerKey(`goal_${i}`);
         const savedGoal = parseInt(localStorage.getItem(serverKey)) || 0;
-        const currentProfit = clientWeeklyProfits[cName] || 0;
+        const currentProfit = clientMonthlyProfits[cName] || 0;
         const percent = savedGoal > 0 ? Math.min(100, Math.floor((currentProfit / savedGoal) * 100)) : 0;
 
         goalBody.innerHTML += `
@@ -233,7 +420,7 @@ function renderGoalTable() {
                 </td>
                 <td style="padding: 10px;">
                     <div style="font-size: 12px; font-weight: bold; margin-bottom: 3px; color: #333;">
-                        주간 달성: ${currentProfit.toLocaleString()}원 (${percent}%)
+                        월간 달성: ${currentProfit.toLocaleString()}원 (${percent}%)
                     </div>
                     <div style="width: 100%; background: #e0e0e0; border-radius: 10px; height: 12px; overflow: hidden; border: 1px solid #ccc;">
                         <div style="width: ${percent}%; background: #2ecc71; height: 100%; transition: width 0.3s ease;"></div>
@@ -250,43 +437,44 @@ function saveGoal(clientIndex, value) {
     updateDashboard();
 }
 
-// [수익 등록 - Date 필드 스탬프 및 아이템 마스터 등록 기능 포함]
 async function addProfit() {
     const clientSelect = document.querySelector('.client-select');
     const client = clientSelect ? clientSelect.value : "1클라";
     const item = document.getElementById('item-name').value.trim();
     const price = document.getElementById('item-price').value;
     const qty = document.getElementById('item-qty').value;
-    
-    const rawServer = localStorage.getItem('selectedServer') || "서버없음";
-    const currentServer = cleanServerName(rawServer);
 
     if (!item || !price) {
         return; 
     }
 
+    await saveProfitEntry(client, item, price, qty);
+
+    clearInput();
+    updateItemDataList(); 
+}
+
+async function saveProfitEntry(client, item, price, qty) {
+    const rawServer = localStorage.getItem('selectedServer') || "서버없음";
+    const currentServer = cleanServerName(rawServer);
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // 1. 로컬 저장소 저장 (date 속성 추가)
-    const newEntry = { client, item, qty, price, server: currentServer, date: todayStr };
+    const newEntry = { client, item, qty: parseInt(qty) || 1, price: parseInt(price) || 0, server: currentServer, date: todayStr };
     let savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     savedData.push(newEntry);
     localStorage.setItem('savedProfits', JSON.stringify(savedData));
 
-    // 2. 영구 보존용 아이템 마스터 목록에 저장
     saveItemToMasterList(item);
 
-    // 3. 중앙 DB 전송
     try {
         await fetch(GOOGLE_SHEET_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ server: currentServer, item: item, price: parseInt(price) })
+            body: JSON.stringify({ server: currentServer, item: item, price: parseInt(price) || 0 })
         });
     } catch (e) { console.error("시트 전송 실패:", e); }
 
-    // 4. 로컬 최저가 관리
     let allProfits = JSON.parse(localStorage.getItem('all_user_profits') || "{}");
     const userServerKey = `${currentServer}_${client}`;
     if (!allProfits[userServerKey]) allProfits[userServerKey] = { server: currentServer, items: {} };
@@ -295,27 +483,15 @@ async function addProfit() {
 
     loadProfitData();
     renderPriceTable(); 
-    clearInput();
-    updateItemDataList(); // 자동완성 목록 즉시 업데이트
-    updateDashboard(); // 대시보드 실시간 업데이트
+    updateDashboard(); 
 }
 
-// [수정 완료: 테이블 인라인 수정/삭제 시 과거 데이터 보존 처리]
 function saveProfitsToLocal() {
     const rows = document.querySelectorAll('#profit-body tr');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
     const todayStr = new Date().toISOString().split('T')[0];
 
-    let savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
-    
-    // 오늘 날짜가 아니거나 다른 서버인 과거 데이터는 유지
-    let otherData = savedData.filter(entry => {
-        const entryServer = cleanServerName(entry.server || "서버없음");
-        return entryServer !== currentServer || (entry.date && entry.date !== todayStr);
-    });
-
-    // 화면(오늘 일일 통계)에 남아있는 항목들을 오늘 날짜 데이터로 추가
-    const currentDailyData = Array.from(rows).map(tr => {
+    const savedData = Array.from(rows).map(tr => {
         const c = tr.querySelectorAll('td');
         const itemName = c[1].innerText.trim();
         saveItemToMasterList(itemName); 
@@ -329,12 +505,10 @@ function saveProfitsToLocal() {
             date: todayStr
         };
     });
-
-    const updatedData = [...otherData, ...currentDailyData];
-    localStorage.setItem('savedProfits', JSON.stringify(updatedData));
+    localStorage.setItem('savedProfits', JSON.stringify(savedData));
     
     let allProfits = {};
-    updatedData.forEach(entry => {
+    savedData.forEach(entry => {
         const userServerKey = `${currentServer}_${entry.client}`;
         if (!allProfits[userServerKey]) allProfits[userServerKey] = { server: currentServer, items: {} };
         allProfits[userServerKey].items[entry.item] = parseInt(entry.price) || 0;
@@ -372,19 +546,98 @@ function clearInput() {
     document.getElementById('item-qty').value = '';
 }
 
+function exportFullBackupJSON() {
+    try {
+        const backupData = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            backupData[key] = localStorage.getItem(key);
+        }
+        if (Object.keys(backupData).length === 0) return false;
+
+        const dataStr = JSON.stringify(backupData, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+        const today = new Date().toISOString().split('T')[0];
+
+        const link = document.createElement('a');
+        link.setAttribute('href', dataUri);
+        link.setAttribute('download', `거상매니저_백업_${today}.json`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        return true;
+    } catch (e) {
+        console.error('백업 생성 실패:', e);
+        return false;
+    }
+}
+
+function runDataKillChain() {
+    const daysSelect = document.getElementById('killchain-days-select');
+    const daysThreshold = parseInt(daysSelect ? daysSelect.value : "30", 10);
+
+    const backupSuccess = exportFullBackupJSON();
+    if (!backupSuccess) {
+        showToast("백업 대상 데이터가 없거나 백업 중 오류가 발생했습니다.", "error");
+        return;
+    }
+
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() - daysThreshold);
+
+    const rawProfits = localStorage.getItem('savedProfits');
+    let deletedProfitsCount = 0;
+
+    if (rawProfits) {
+        try {
+            const profitsArr = JSON.parse(rawProfits);
+            const initialCount = profitsArr.length;
+
+            const cleanedProfits = profitsArr.filter(entry => {
+                if (!entry.date) return true; 
+                const entryDate = new Date(entry.date);
+                return entryDate >= targetDate;
+            });
+
+            deletedProfitsCount = initialCount - cleanedProfits.length;
+            localStorage.setItem('savedProfits', JSON.stringify(cleanedProfits));
+        } catch (err) {
+            console.error("수익 데이터 청소 중 오류:", err);
+        }
+    }
+
+    loadProfitData();
+    renderWeeklyProfitTable();
+    renderMonthlyProfitTable();
+    updateDashboard();
+
+    showToast(`🧹 ${daysThreshold}일 이전 데이터 ${deletedProfitsCount}건 정리 완료! (백업 저장됨)`, "warning");
+}
+
 function initSettings() {
     const container = document.getElementById('client-name-inputs');
     if (!container) return;
-    const essentialTasks = getSavedTasks('essentialTasks', DEFAULT_ESSENTIAL);
-    const specialTasks = getSavedTasks('specialTasks', DEFAULT_SPECIAL);
-    const weeklyTasks = getSavedTasks('weeklyTasks', DEFAULT_WEEKLY);
+
     container.innerHTML = `
         <div style="width: 75%; margin-left: 0; margin-top: 20px; padding: 20px; background: rgba(0, 0, 0, 0.75); border-radius: 10px; color: white; border: 1px solid rgba(255,255,255,0.2); max-height: 80vh; overflow-y: auto;">
             <h4 style="margin: 10px 0; color: #ffd700;">👥 클라이언트 별칭 설정</h4>
             <table style="width: 100%; border-collapse: collapse; color: white; margin-bottom: 25px;">
                 ${[1,2,3,4,5].map(i => `<tr><td style="padding: 5px; width: 30%;">클라이언트 ${i}</td><td style="padding: 5px;"><input type="text" id="name_input_${i}" value="${getClientName(i)}" style="width: 95%; padding: 4px; background: rgba(255,255,255,0.1); color: white; border: 1px solid #555;"></td></tr>`).join('')}
             </table>
-            <h4 style="margin: 10px 0; color: #ffd700;">📝 실시간 숙제 관리자</h4>
+            
+            <h4 style="margin: 10px 0; color: #ffd700; display: flex; align-items: center; justify-content: space-between;">
+                <span>📝 실시간 숙제 관리자</span>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 12px; color: #aaa;">편집 대상:</span>
+                    <select onchange="switchConfigClient(this.value)" style="padding: 4px 8px; background: #ff9800; color: white; font-weight: bold; border-radius: 4px; border: none; cursor: pointer; outline: none;">
+                        ${[1,2,3,4,5].map(i => `<option value="${i}" ${i === currentConfigClientIndex ? 'selected' : ''}>${getClientName(i)}</option>`).join('')}
+                    </select>
+                    <button onclick="copyClient1ConfigToAll()" style="padding: 5px 10px; background-color: #0284c7; color: white; border: 1px solid #38bdf8; font-weight: bold; border-radius: 4px; cursor: pointer;">
+                        📋 1클라 설정 전체 복사
+                    </button>
+                </div>
+            </h4>
+
             <div style="display: flex; gap: 15px; margin-bottom: 20px;">
                 <div style="flex: 1; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
                     <div style="font-weight: bold; margin-bottom: 8px; color: #64b5f6;">일일 필수임무</div>
@@ -404,10 +657,19 @@ function initSettings() {
             </div>
 
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px;">
-                <div style="font-weight: bold; margin-bottom: 8px; color: #b3e5fc; font-size: 14px;">💾 데이터 백업 및 복구</div>
-                <div style="display: flex; gap: 10px;">
-                    <button id="btn-backup" style="flex: 1; padding: 10px; background: #2e7d32; color: white; border: 1px solid #4caf50; font-weight: bold; border-radius: 4px; cursor: pointer;">📥 전체 데이터 백업</button>
-                    <button id="btn-restore-trigger" style="flex: 1; padding: 10px; background: #1565c0; color: white; border: 1px solid #2196f3; font-weight: bold; border-radius: 4px; cursor: pointer;">📤 데이터 가져오기</button>
+                <div style="font-weight: bold; margin-bottom: 8px; color: #b3e5fc; font-size: 14px;">💾 데이터 백업, 복구 및 킬체인</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button id="btn-backup" style="flex: 1; min-width: 140px; padding: 10px; background: #2e7d32; color: white; border: 1px solid #4caf50; font-weight: bold; border-radius: 4px; cursor: pointer;">📥 전체 백업</button>
+                    <button id="btn-restore-trigger" style="flex: 1; min-width: 140px; padding: 10px; background: #1565c0; color: white; border: 1px solid #2196f3; font-weight: bold; border-radius: 4px; cursor: pointer;">📤 데이터 가져오기</button>
+                    
+                    <div style="flex: 1.2; min-width: 240px; display: flex; gap: 5px;">
+                        <select id="killchain-days-select" class="select-days" style="flex: 1;">
+                            <option value="30">30일 이전 정리</option>
+                            <option value="60">60일 이전 정리</option>
+                            <option value="90">90일 이전 정리</option>
+                        </select>
+                        <button id="btn-killchain" class="btn-warning" style="flex: 1.5; padding: 10px;">🧹 킬체인 실행</button>
+                    </div>
                 </div>
                 <input type="file" id="restore-file-input" accept=".json" style="display: none;">
             </div>
@@ -424,29 +686,12 @@ function initSettings() {
     const btnBackup = container.querySelector('#btn-backup');
     const btnRestoreTrigger = container.querySelector('#btn-restore-trigger');
     const restoreFileInput = container.querySelector('#restore-file-input');
+    const btnKillChain = container.querySelector('#btn-killchain');
 
     if (btnBackup) {
         btnBackup.addEventListener('click', () => {
-            try {
-                const backupData = {};
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    backupData[key] = localStorage.getItem(key);
-                }
-                if (Object.keys(backupData).length === 0) return;
-
-                const dataStr = JSON.stringify(backupData, null, 2);
-                const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-                const today = new Date().toISOString().split('T')[0];
-
-                const link = document.createElement('a');
-                link.setAttribute('href', dataUri);
-                link.setAttribute('download', `거상매니저_백업_${today}.json`);
-                link.click();
-                link.remove();
-            } catch (e) {
-                console.error('백업 실패:', e);
-            }
+            const ok = exportFullBackupJSON();
+            if (ok) showToast("전체 데이터 백업 파일이 다운로드되었습니다.");
         });
     }
 
@@ -471,6 +716,7 @@ function initSettings() {
                     );
 
                     if (!hasValidKey) {
+                        showToast("올바른 거상 매니저 백업 파일이 아닙니다.", "error");
                         restoreFileInput.value = '';
                         return;
                     }
@@ -483,6 +729,7 @@ function initSettings() {
                     location.reload(); 
                 } catch (err) {
                     console.error('백업 읽기 실패:', err);
+                    showToast("파일을 읽는 중 오류가 발생했습니다.", "error");
                     restoreFileInput.value = '';
                 }
             };
@@ -490,9 +737,11 @@ function initSettings() {
         });
     }
 
-    renderConfigList('essential', essentialTasks); 
-    renderConfigList('special', specialTasks); 
-    renderConfigList('weekly', weeklyTasks);
+    if (btnKillChain) {
+        btnKillChain.addEventListener('click', runDataKillChain);
+    }
+
+    switchConfigClient(currentConfigClientIndex);
 }
 
 function renderConfigList(type, array) {
@@ -504,26 +753,21 @@ function renderConfigList(type, array) {
 function addConfigTask(type) {
     const input = document.getElementById(`new-${type}`);
     if (!input || !input.value.trim()) return;
-    let key = type === 'essential' ? 'essentialTasks' : (type === 'special' ? 'specialTasks' : 'weeklyTasks');
-    let defArr = type === 'essential' ? DEFAULT_ESSENTIAL : (type === 'special' ? DEFAULT_SPECIAL : DEFAULT_WEEKLY);
-    let current = getSavedTasks(key, defArr);
+    
+    let current = getConfigTasks(type);
     current.push(input.value.trim());
     
-    const serverKey = getServerKey(key);
-    localStorage.setItem(serverKey, JSON.stringify(current));
+    saveConfigTasks(type, current);
     input.value = '';
     renderConfigList(type, current);
     refreshMainTables();
 }
 
 function deleteConfigTask(type, idx) {
-    let key = type === 'essential' ? 'essentialTasks' : (type === 'special' ? 'specialTasks' : 'weeklyTasks');
-    let defArr = type === 'essential' ? DEFAULT_ESSENTIAL : (type === 'special' ? DEFAULT_SPECIAL : DEFAULT_WEEKLY);
-    let current = getSavedTasks(key, defArr);
+    let current = getConfigTasks(type);
     current.splice(idx, 1);
     
-    const serverKey = getServerKey(key);
-    localStorage.setItem(serverKey, JSON.stringify(current));
+    saveConfigTasks(type, current);
     renderConfigList(type, current);
     refreshMainTables();
 }
@@ -561,12 +805,7 @@ function saveSettings() {
     });
     
     refreshMainTables();
-    const msgSpan = document.getElementById('save-msg');
-    if (msgSpan) {
-        msgSpan.innerText = "✔️ 변경사항이 저장되었습니다!";
-        msgSpan.style.opacity = "1";
-        setTimeout(() => { msgSpan.style.opacity = "0"; }, 2000);
-    }
+    showToast("✔️ 변경사항이 저장되었습니다!");
 }
 
 function toggleStatus(checkbox, type, taskName) {
@@ -577,7 +816,7 @@ function toggleStatus(checkbox, type, taskName) {
     const clientKey = getClientServerKey(`check_${type}_${taskName}`);
     localStorage.setItem(clientKey, isChecked ? "true" : "false");
     updateProgress();
-    updateDashboard(); // 대시보드 실시간 업데이트
+    updateDashboard(); 
 }
 
 function updateProgress() {
@@ -618,8 +857,14 @@ function getBlogText(type) {
     return text + `------------------------------\n#거상`;
 }
 
-function copyDailyBlogText() { navigator.clipboard.writeText(getBlogText('daily')); }
-function copyBlogText() { navigator.clipboard.writeText(getBlogText('weekly')); }
+function copyDailyBlogText() { 
+    navigator.clipboard.writeText(getBlogText('daily')); 
+    showToast("일간 수익 복사가 완료되었습니다.");
+}
+function copyBlogText() { 
+    navigator.clipboard.writeText(getBlogText('weekly')); 
+    showToast("주간 수익 복사가 완료되었습니다.");
+}
 
 function refreshMainTables() {
     createTable(getSavedTasks('essentialTasks', DEFAULT_ESSENTIAL), 'essential-body', 'essential');
@@ -718,7 +963,6 @@ function resetWeeklyTasks() {
     refreshMainTables();
 }
 
-// 최저가 연동 함수
 async function renderPriceTable() {
     const rawSelectedServer = localStorage.getItem('selectedServer') || "서버없음";
     const displayEl = document.getElementById('display-server-name');
@@ -731,6 +975,13 @@ async function renderPriceTable() {
     const tbody = document.getElementById('price-body');
     if (!tbody) return;
 
+    const validDaysSelect = document.getElementById('price-valid-days');
+    if (validDaysSelect) {
+        priceTableState.validDays = parseInt(validDaysSelect.value) || 7;
+    }
+
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#ffd700; padding: 20px;">🔄 최신 최저가 데이터를 불러오는 중입니다...</td></tr>`;
+
     try {
         const cacheBusterUrl = `${GOOGLE_SHEET_URL}${GOOGLE_SHEET_URL.includes('?') ? '&' : '?'}_=${new Date().getTime()}`;
         
@@ -742,25 +993,31 @@ async function renderPriceTable() {
         });
         
         const data = await response.json(); 
-        let lowestPrices = {};
 
         if (!data || !Array.isArray(data)) {
             tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#e57373; padding: 15px;">시트 데이터 수신 실패 (데이터 형식 오류)</td></tr>`;
             return;
         }
 
+        const now = new Date();
+        const cutoffDate = new Date();
+        cutoffDate.setDate(now.getDate() - priceTableState.validDays);
+
+        let lowestPrices = {};
+
         for (let i = 0; i < data.length; i++) {
             const row = data[i];
             if (!row) continue;
 
-            let srv = "", itm = "", prcRaw = "";
+            let srv = "", itm = "", prcRaw = "", dateRaw = "";
             if (Array.isArray(row)) {
                 if (i === 0) continue; 
-                srv = row[0]; itm = row[1]; prcRaw = row[2];
+                srv = row[0]; itm = row[1]; prcRaw = row[2]; dateRaw = row[3] || "";
             } else if (typeof row === 'object') {
                 srv = row["서버"] || row["server"] || row[Object.keys(row)[0]];
                 itm = row["아이템"] || row["item"] || row[Object.keys(row)[1]];
                 prcRaw = row["단가"] || row["price"] || row[Object.keys(row)[2]];
+                dateRaw = row["등록일시"] || row["date"] || row[Object.keys(row)[3]] || "";
             }
 
             if (!srv || !itm) continue;
@@ -769,30 +1026,217 @@ async function renderPriceTable() {
             const prcCleanedStr = String(prcRaw).replace(/,/g, '').replace(/[^0-9]/g, '');
             const prc = parseInt(prcCleanedStr) || 0;
 
-            if (srvClean === currentServerClean && itm.trim() !== "") {
+            if (dateRaw) {
+                const entryDate = new Date(dateRaw);
+                if (!isNaN(entryDate.getTime()) && entryDate < cutoffDate) {
+                    continue; 
+                }
+            }
+
+            if (srvClean === currentServerClean && itm.trim() !== "" && prc > 0) {
                 const itemKey = itm.trim();
-                if (!lowestPrices[itemKey] || prc < lowestPrices[itemKey]) {
-                    lowestPrices[itemKey] = prc;
+                if (!lowestPrices[itemKey] || prc < lowestPrices[itemKey].price) {
+                    lowestPrices[itemKey] = {
+                        price: prc,
+                        date: dateRaw || now.toISOString()
+                    };
                 }
             }
         }
 
-        tbody.innerHTML = "";
-        const keys = Object.keys(lowestPrices);
-        if (keys.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#aaa; padding: 15px;">${currentServerClean} 서버에 해당하는 최저가 데이터가 없습니다.</td></tr>`;
-        } else {
-            for (const item in lowestPrices) {
-                tbody.innerHTML += `<tr><td>${item}</td><td>${lowestPrices[item].toLocaleString()}원</td><td>실시간</td></tr>`;
-            }
-        }
+        priceTableState.allData = Object.keys(lowestPrices).map(item => ({
+            item: item,
+            price: lowestPrices[item].price,
+            date: lowestPrices[item].date
+        }));
+
+        priceTableState.currentPage = 1;
+        renderPriceTablePage();
+
     } catch (e) {
         console.error("최저가 조회 중 오류 발생:", e);
         tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#e57373; padding: 15px;">서버 연결 오류가 발생했습니다.</td></tr>`;
     }
 }
 
-// showProfitTab: 탭 클릭 시 각 통계/목표 렌더링 함수 실행
+function renderPriceTablePage() {
+    const tbody = document.getElementById('price-body');
+    const paginationContainer = document.getElementById('price-pagination');
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+
+    const { allData, currentPage, pageSize } = priceTableState;
+    if (allData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#aaa; padding: 15px;">최근 ${priceTableState.validDays}일 이내 등록된 최저가 데이터가 없습니다.</td></tr>`;
+        if (paginationContainer) paginationContainer.innerHTML = "";
+        return;
+    }
+
+    const startIndex = (currentPage - 1) * pageSize;
+    const pageData = allData.slice(startIndex, startIndex + pageSize);
+
+    pageData.forEach(row => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${row.item}</td>
+                <td style="color:#2ecc71; font-weight:bold;">${row.price.toLocaleString()}원</td>
+                <td style="color:#ccc; font-size:12px;">${formatRelativeTime(row.date)}</td>
+            </tr>
+        `;
+    });
+
+    if (paginationContainer) {
+        const totalPages = Math.ceil(allData.length / pageSize);
+        let paginationHTML = "";
+
+        for (let i = 1; i <= totalPages; i++) {
+            const activeStyle = (i === currentPage) 
+                ? 'background-color: #ff9800; color: white; font-weight: bold; border-color: #ff9800;' 
+                : 'background-color: rgba(255,255,255,0.1); color: #ccc; border-color: #555;';
+
+            paginationHTML += `
+                <button onclick="changePricePage(${i})" style="padding: 4px 10px; margin: 0 2px; border: 1px solid; border-radius: 3px; cursor: pointer; ${activeStyle}">
+                    ${i}
+                </button>
+            `;
+        }
+        paginationContainer.innerHTML = paginationHTML;
+    }
+}
+
+function changePricePage(pageNumber) {
+    priceTableState.currentPage = pageNumber;
+    renderPriceTablePage();
+}
+
+let calcDropItems = [];
+
+function openCalcModal() {
+    const modal = document.getElementById('calc-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        calculateProfitMargin();
+    }
+}
+
+function closeCalcModal() {
+    const modal = document.getElementById('calc-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function quickSelectCalcItem(itemName) {
+    const nameInput = document.getElementById('calc-item-name');
+    const priceInput = document.getElementById('calc-item-price');
+    if (nameInput) {
+        nameInput.value = itemName;
+        if (priceInput) priceInput.focus();
+    }
+}
+
+async function addCalcItem() {
+    const nameInput = document.getElementById('calc-item-name');
+    const priceInput = document.getElementById('calc-item-price');
+    const qtyInput = document.getElementById('calc-item-qty');
+
+    const name = nameInput.value.trim();
+    const price = parseInt(priceInput.value) || 0;
+    const qty = parseInt(qtyInput.value) || 1;
+
+    if (!name || price <= 0) {
+        showToast("아이템명과 단가를 바르게 입력해 주세요.", "warning");
+        return;
+    }
+
+    calcDropItems.push({ name, price, qty });
+
+    const clientSelect = document.querySelector('.client-select');
+    const currentClient = clientSelect ? clientSelect.value : getClientName(1);
+    
+    await saveProfitEntry(currentClient, name, price, qty);
+
+    showToast(`'${name}' 아이템이 손익계산기 및 일간 통계에 연동되었습니다.`, "success");
+
+    nameInput.value = '';
+    priceInput.value = '';
+    qtyInput.value = '1';
+
+    renderCalcItemList();
+    calculateProfitMargin();
+    updateItemDataList();
+}
+
+function removeCalcItem(index) {
+    calcDropItems.splice(index, 1);
+    renderCalcItemList();
+    calculateProfitMargin();
+}
+
+function renderCalcItemList() {
+    const container = document.getElementById('calc-item-list');
+    if (!container) return;
+
+    if (calcDropItems.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 10px;">등록된 획득 아이템이 없습니다.</div>`;
+        return;
+    }
+
+    container.innerHTML = calcDropItems.map((item, idx) => {
+        const total = item.price * item.qty;
+        return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; border-bottom: 1px solid #1e293b;">
+                <span><strong>${item.name}</strong> (${item.qty}개)</span>
+                <div>
+                    <span style="color: #38bdf8; margin-right: 8px;">${total.toLocaleString()}원</span>
+                    <span onclick="removeCalcItem(${idx})" style="color: #ef4444; cursor: pointer; font-weight: bold;">✕</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function calculateProfitMargin() {
+    const buyPrice = parseInt(document.getElementById('calc-buy-price').value) || 0;
+    const qty = parseInt(document.getElementById('calc-qty').value) || 1;
+
+    const totalCost = buyPrice * qty;
+    const totalItemValue = calcDropItems.reduce((acc, cur) => acc + (cur.price * cur.qty), 0);
+    const netProfit = totalItemValue - totalCost;
+
+    let roi = 0;
+    if (totalCost > 0) {
+        roi = ((netProfit / totalCost) * 100).toFixed(1);
+    }
+
+    const costEl = document.getElementById('calc-total-cost');
+    const valueEl = document.getElementById('calc-total-item-value');
+    const netProfitEl = document.getElementById('calc-net-profit');
+    const roiEl = document.getElementById('calc-roi');
+
+    if (costEl) costEl.innerText = `${totalCost.toLocaleString()}원`;
+    if (valueEl) valueEl.innerText = `${totalItemValue.toLocaleString()}원`;
+
+    if (netProfitEl) {
+        if (netProfit > 0) {
+            netProfitEl.innerText = `+${netProfit.toLocaleString()}원 (이득!)`;
+            netProfitEl.style.color = '#2ecc71'; 
+        } else if (netProfit < 0) {
+            netProfitEl.innerText = `${netProfit.toLocaleString()}원 (손해)`;
+            netProfitEl.style.color = '#ef4444'; 
+        } else {
+            netProfitEl.innerText = `0원 (본전)`;
+            netProfitEl.style.color = '#f8fafc';
+        }
+    }
+
+    if (roiEl) {
+        roiEl.innerText = `${roi}%`;
+        roiEl.style.color = netProfit >= 0 ? '#38bdf8' : '#ef4444';
+    }
+}
+
 function showProfitTab(tabName, event) {
     const buttons = document.querySelectorAll('.tab-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
@@ -819,15 +1263,17 @@ function showSection(id) {
     }
 }
 
-// [대시보드 실시간 연동 처리]
 function updateDashboard() {
     const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
     const todayStr = new Date().toISOString().split('T')[0];
-    const currentWeek = getISOWeek(new Date());
-    const currentYear = new Date().getFullYear();
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const startOfMonth = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
 
-    // 1. 오늘 수익 계산
     const todayProfit = savedData.filter(entry => {
         return cleanServerName(entry.server) === currentServer && entry.date === todayStr;
     }).reduce((acc, curr) => acc + (parseInt(curr.price || 0) * parseInt(curr.qty || 0)), 0);
@@ -835,27 +1281,25 @@ function updateDashboard() {
     const profitEl = document.getElementById('today-total-profit');
     if (profitEl) profitEl.innerText = todayProfit.toLocaleString() + '원';
 
-    // 2. 주간 목표 및 누적 수익 계산
-    let totalWeeklyGoal = 0;
+    let totalMonthlyGoal = 0;
     for (let i = 1; i <= 5; i++) {
-        totalWeeklyGoal += parseInt(localStorage.getItem(getServerKey(`goal_${i}`)) || 0);
+        totalMonthlyGoal += parseInt(localStorage.getItem(getServerKey(`goal_${i}`)) || 0);
     }
 
-    const currentWeekProfit = savedData.filter(entry => {
+    const currentMonthProfit = savedData.filter(entry => {
         if (cleanServerName(entry.server) !== currentServer) return false;
         if (!entry.date) return true;
         const entryDate = new Date(entry.date);
-        return entryDate.getFullYear() === currentYear && getISOWeek(entryDate) === currentWeek;
+        return entryDate >= startOfMonth && entryDate <= endOfMonth;
     }).reduce((acc, curr) => acc + (parseInt(curr.price || 0) * parseInt(curr.qty || 0)), 0);
 
-    const goalPercent = totalWeeklyGoal > 0 ? Math.min(100, Math.floor((currentWeekProfit / totalWeeklyGoal) * 100)) : 0;
+    const goalPercent = totalMonthlyGoal > 0 ? Math.min(100, Math.floor((currentMonthProfit / totalMonthlyGoal) * 100)) : 0;
     
     const goalBarFill = document.getElementById('weekly-goal-bar-fill');
     const goalText = document.getElementById('weekly-goal-text');
     if (goalBarFill) goalBarFill.style.width = `${goalPercent}%`;
     if (goalText) goalText.innerText = `${goalPercent}%`;
 
-    // 3. 숙제 완료율 계산
     const checkboxes = document.querySelectorAll('#essential-body input[type="checkbox"], #optional-body input[type="checkbox"]');
     const checked = document.querySelectorAll('#essential-body input[type="checkbox"]:checked, #optional-body input[type="checkbox"]:checked');
     
@@ -868,7 +1312,6 @@ function updateDashboard() {
     }
 }
 
-// 영구 보존용 아이템 마스터 목록 저장 함수
 function saveItemToMasterList(itemName) {
     if (!itemName) return;
     let masterList = JSON.parse(localStorage.getItem('itemMasterList') || '[]');
@@ -878,13 +1321,14 @@ function saveItemToMasterList(itemName) {
     }
 }
 
-// 일일 통계 데이터가 초기화되어도 자동완성이 유지되는 연동 함수
 function updateItemDataList() {
     const dataList = document.getElementById('item-list');
     if (!dataList) return;
 
     dataList.innerHTML = '';
     const itemSet = new Set();
+
+    DEFAULT_COMMON_ITEMS.forEach(item => itemSet.add(item));
 
     const masterList = JSON.parse(localStorage.getItem('itemMasterList') || '[]');
     masterList.forEach(item => itemSet.add(item));
@@ -903,8 +1347,14 @@ function updateItemDataList() {
     });
 }
 
-// window.onload 이벤트
 window.onload = () => {
+    // FactoryManager 안전 초기화 (DOM 요소 존재 시 구동)
+    if (FactoryManager && typeof FactoryManager.init === 'function') {
+        if (document.getElementById('factory-table-body')) {
+            FactoryManager.init();
+        }
+    }
+
     checkAndResetTasks();
     updateItemDataList();
     
@@ -935,101 +1385,38 @@ window.onload = () => {
     
     updateLiveDateTime(); 
     setInterval(updateLiveDateTime, 1000);
-
-    // 업데이트 체크 실행
-    checkForUpdates();
 };
 
-// [Electron 항상 위 고정 기능 - 마지막 상태 기억]
-const { ipcRenderer } = require('electron');
-const pinBtn = document.getElementById('pin-btn');
+try {
+    const { ipcRenderer } = require('electron');
+    const pinBtn = document.getElementById('pin-btn');
 
-if (pinBtn) {
-    const savedAlwaysOnTop = localStorage.getItem('alwaysOnTopState') === 'true';
+    if (pinBtn) {
+        const savedAlwaysOnTop = localStorage.getItem('alwaysOnTopState') === 'true';
 
-    function applyAlwaysOnTopState(isTop) {
-        if (isTop) {
-            pinBtn.classList.add('active');
-            pinBtn.innerText = '📌 항상 위';
-        } else {
-            pinBtn.classList.remove('active');
-            pinBtn.innerText = '❌ 항상 위';
+        function applyAlwaysOnTopState(isTop) {
+            if (isTop) {
+                pinBtn.classList.add('active');
+                pinBtn.innerText = '📌 항상 위';
+            } else {
+                pinBtn.classList.remove('active');
+                pinBtn.innerText = '❌ 항상 위';
+            }
+            ipcRenderer.send('toggle-always-on-top', isTop);
         }
-        ipcRenderer.send('toggle-always-on-top', isTop);
+
+        applyAlwaysOnTopState(savedAlwaysOnTop);
+
+        pinBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            const currentActive = pinBtn.classList.contains('active');
+            const nextState = !currentActive;
+            
+            localStorage.setItem('alwaysOnTopState', nextState ? 'true' : 'false');
+            applyAlwaysOnTopState(nextState);
+        });
     }
-
-    applyAlwaysOnTopState(savedAlwaysOnTop);
-
-    pinBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        
-        const currentActive = pinBtn.classList.contains('active');
-        const nextState = !currentActive;
-        
-        localStorage.setItem('alwaysOnTopState', nextState ? 'true' : 'false');
-        applyAlwaysOnTopState(nextState);
-    });
-}
-
-// 1. 현재 내 프로그램의 버전 (업데이트 패치할 때 올려줍니다)
-const CURRENT_APP_VERSION = "1.2.5"; 
-
-// 2. 깃허브에 올라가 있는 update.json의 Raw 파일 주소
-const UPDATE_CHECK_URL = "https://raw.githubusercontent.com/whddns4754/gersang-daily-manager/main/update.json";
-
-// 버전 체크 및 팝업 출력 함수
-async function checkForUpdates() {
-    try {
-        const response = await fetch(`${UPDATE_CHECK_URL}?_=${new Date().getTime()}`);
-        if (!response.ok) return;
-
-        const data = await response.json();
-
-        // 프로그램 버전보다 깃허브 버전이 높으면 팝업 생성
-        if (isNewerVersion(CURRENT_APP_VERSION, data.latestVersion)) {
-            showUpdateNotice(data);
-        }
-    } catch (error) {
-        console.log("업데이트 체크 스킵:", error);
-    }
-}
-
-// 버전 단순 비교 (1.0.0 < 1.0.1)
-function isNewerVersion(current, latest) {
-    const cParts = current.split('.').map(Number);
-    const lParts = latest.split('.').map(Number);
-    for (let i = 0; i < Math.max(cParts.length, lParts.length); i++) {
-        const c = cParts[i] || 0;
-        const l = lParts[i] || 0;
-        if (l > c) return true;
-        if (l < c) return false;
-    }
-    return false;
-}
-
-// 팝업 창 UI 동적 생성 (설명 포함)
-function showUpdateNotice(data) {
-    const modalHtml = `
-        <div id="update-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 99999;">
-            <div style="background: #1e1e1e; color: #fff; padding: 25px; border-radius: 12px; width: 420px; border: 1px solid #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.4);">
-                <h3 style="margin: 0 0 10px 0; color: #ffd700; font-size: 18px;">🔔 새로운 업데이트가 있습니다!</h3>
-                <div style="font-size: 13px; color: #aaa; margin-bottom: 15px;">
-                    <span>현재 버전: v${CURRENT_APP_VERSION}</span> ➔ <b style="color: #2ecc71;">최신 버전: v${data.latestVersion}</b>
-                </div>
-                
-                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); max-height: 180px; overflow-y: auto; margin-bottom: 20px;">
-                    <div style="font-size: 13px; font-weight: bold; color: #ffd700; margin-bottom: 8px;">📝 업데이트 변경 내용</div>
-                    <ul style="margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; color: #ddd;">
-                        ${data.changelog.map(item => `<li>${item}</li>`).join('')}
-                    </ul>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; gap: 10px;">
-                    <button onclick="document.getElementById('update-modal').remove()" style="flex: 1; padding: 10px; background: #444; color: #fff; border: none; border-radius: 5px; cursor: pointer;">나중에 하기</button>
-                    <button onclick="window.open('${data.downloadUrl}')" style="flex: 1.5; padding: 10px; background: #27ae60; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">업데이트 받기</button>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+} catch (e) {
+    console.log("웹 브라우저 환경 실행 중 (Electron 미사용)");
 }

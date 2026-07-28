@@ -1,0 +1,244 @@
+/* --- 생산시설 관리 전용 스타일 --- */
+
+.factory-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* 상단 카테고리 메뉴 영역 */
+.factory-category-menu {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.factory-category-btn {
+    background-color: #2c2c2c;
+    color: #cccccc;
+    border: 1px solid #444444;
+    padding: 10px 22px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.factory-category-btn:hover, 
+.factory-category-btn.active {
+    background-color: #5c4033;
+    color: #ffffff;
+    border-color: #8b5a2b;
+}
+
+/* 목록 컨테이너 박스 */
+.factory-container {
+    background: rgba(20, 20, 20, 0.9);
+    border: 2px solid #8b5a2b;
+    border-radius: 6px;
+    width: 100%;
+    max-width: 650px;
+    padding: 20px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.7);
+    box-sizing: border-box;
+}
+
+/* 타이틀 */
+.factory-title {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #444444;
+    padding-bottom: 10px;
+    color: #ffcc00;
+}
+
+/* 테이블 디자인 */
+.factory-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.factory-table th, .factory-table td {
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.factory-table th {
+    color: #aaaaaa;
+    border-bottom: 1px solid #333333;
+    font-weight: 600;
+}
+
+.factory-table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.factory-table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+}
+
+.text-right {
+    text-align: right;
+}
+
+/* 상세 관리 화면 (배경 이미지 적용 영역 및 높이 확장) */
+.factory-detail-view {
+    position: relative;
+    width: 100%;
+    max-width: 800px; /* 가로 폭 살짝 넓힘 */
+    min-height: 620px; /* 아래쪽 세로 공간 확장 */
+    background: url('image_415d0a.jpg') no-repeat center center;
+    background-size: cover;
+    border: 2px solid #8b5a2b;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.7);
+}
+
+.factory-detail-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.65);
+    padding: 16px 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+}
+
+.factory-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 8px;
+}
+
+.factory-detail-header h2 {
+    margin: 0;
+    color: #ffcc00;
+    font-size: 18px;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
+}
+
+.owner-input-wrap {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #ddd;
+}
+
+.owner-input-wrap input {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid #555;
+    color: #fff;
+    padding: 3px 6px;
+    border-radius: 3px;
+}
+
+.factory-back-btn {
+    padding: 6px 14px;
+    background-color: #334155;
+    color: white;
+    border: 1px solid #475569;
+    font-weight: bold;
+    font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.factory-back-btn:hover {
+    background-color: #475569;
+}
+
+/* --- 레이아웃 & 입력/결과 카드 최적화 --- */
+
+.factory-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.factory-card {
+    background: rgba(15, 15, 15, 0.8);
+    border: 1px solid rgba(139, 90, 43, 0.6);
+    border-radius: 6px;
+    padding: 12px 14px;
+    backdrop-filter: blur(3px);
+}
+
+.factory-card h3 {
+    font-size: 13px;
+    color: #ffcc00;
+    margin: 0 0 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 4px;
+}
+
+/* 입력 줄 간격 축소로 세로 여백 확보 */
+.factory-form-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.factory-form-group label {
+    font-size: 11.5px;
+    color: #cccccc;
+}
+
+.factory-form-group input {
+    width: 52%;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #ffffff;
+    border: 1px solid #444444;
+    border-radius: 3px;
+    font-size: 11.5px;
+    text-align: right;
+    outline: none;
+}
+
+.factory-form-group input:focus {
+    border-color: #8b5a2b;
+}
+
+/* 구분선 마진 최소화 */
+.card-divider {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    margin: 6px 0;
+}
+
+.factory-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.factory-result-label {
+    font-size: 11.5px;
+    color: #aaaaaa;
+}
+
+.factory-result-value {
+    font-size: 12px;
+    font-weight: bold;
+    color: #60a5fa;
+}
+
+.factory-result-value.highlight {
+    color: #f87171;
+}

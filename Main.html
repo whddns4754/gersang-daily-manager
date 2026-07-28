@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="Style.css">
     <link rel="stylesheet" href="weekend.css">
     <link rel="stylesheet" href="Stats.css">
+    <link rel="stylesheet" href="factory-style.css"> <!-- 🏭 생산시설 전용 스타일 추가 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -73,6 +74,69 @@
         .menu-item .icon {
             margin-right: 8px;
         }
+
+        .btn-warning {
+            background-color: #d97706 !important;
+            color: #ffffff !important;
+            border: 1px solid #f59e0b !important;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-warning:hover {
+            background-color: #b45309 !important;
+        }
+
+        .select-days {
+            padding: 8px;
+            background-color: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            outline: none;
+        }
+
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast-msg {
+            min-width: 300px;
+            padding: 12px 18px;
+            background-color: #0f172a;
+            color: #f8fafc;
+            border-left: 4px solid #10b981;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            font-size: 14px;
+            font-weight: bold;
+            animation: slideInRight 0.3s ease-out, fadeOut 0.5s ease-in 3s forwards;
+            pointer-events: auto;
+        }
+
+        .toast-warning { border-left-color: #f59e0b; }
+        .toast-error { border-left-color: #ef4444; }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -82,29 +146,25 @@
         <div class="sidebar-title">메뉴</div>
         <div class="menu-item"><a href="#" onclick="showSection('daily-task')">🏠 일일 숙제 메인 관리</a></div>
         <div class="menu-item"><a href="#" onclick="showSection('weekly-quest')">⭐ 주간 대형 퀘스트 목록</a></div>
+        <div class="menu-item" onclick="showSection('factory-manage')">🏭 생산시설관리</div>
         <div class="menu-item" onclick="showSection('profit-stats')">📊 다중 클라 수익 통계</div>
         <div class="menu-item" onclick="showSection('settings-view')">⚙️ 시스템 환경 설정</div>
 
-        <!-- [수정 완료] 대시보드 위젯 영역 -->
+        <!-- 대시보드 위젯 영역 -->
         <div id="sidebar-dashboard" style="margin-top: auto; padding: 18px; background: rgba(0,0,0,0.4); border-top: 1px solid rgba(255,255,255,0.15);">
-            <!-- 1. 오늘의 총 수익 -->
             <div style="margin-bottom: 14px;">
                 <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">오늘의 총 수익</div>
                 <div id="today-total-profit" style="font-size: 18px; font-weight: bold; color: #ffd700;">0원</div>
             </div>
-
-            <!-- 2. 주간 목표 달성률 (신규 추가) -->
             <div style="margin-bottom: 12px;">
                 <div style="display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-bottom: 4px;">
-                    <span>🎯 주간 목표 달성률</span>
+                    <span>🎯 월간 목표 달성률</span>
                     <span id="weekly-goal-text" style="color: #ffd700; font-weight: bold;">0%</span>
                 </div>
                 <div style="background: rgba(255,255,255,0.1); height: 7px; border-radius: 4px; overflow: hidden;">
                     <div id="weekly-goal-bar-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ff9800, #ffd700); transition: width 0.5s;"></div>
                 </div>
             </div>
-
-            <!-- 3. 일일 숙제 완료율 -->
             <div>
                 <div style="display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-bottom: 4px;">
                     <span>📋 일일 숙제 완료율</span>
@@ -121,9 +181,7 @@
     <div class="main-content">
         <div class="title-container">
             <span id="main-title" class="title-text">[서버] 거상 데일리 매니저V2</span>
-            <button id="pin-btn" class="pin-button active" title="항상 위로 고정">
-                📌 항상 위
-            </button>
+            <button id="pin-btn" class="pin-button active" title="항상 위로 고정">📌 항상 위</button>
         </div>
 
         <script>
@@ -145,13 +203,11 @@
             <div style="margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <button onclick="completeDailyTasks()" style="cursor: pointer; padding: 5px 10px; background-color: #2e7d32; color: white; border: 1px solid #4caf50; font-weight: bold; border-radius: 3px;">[일일 일괄완료]</button>
                 <button onclick="resetDailyTasks()" style="cursor: pointer; padding: 5px 10px; background-color: #c62828; color: white; border: 1px solid #ef5350; font-weight: bold; border-radius: 3px;">[일일 일괄해제]</button>
-                
                 <div style="display: flex; align-items: center; gap: 8px; margin-left: 10px;">
                     <span style="color: #ffd700; font-weight: bold; font-size: 14px;">클라이언트 선택:</span>
                     <select class="client-select" style="padding: 6px 12px; background-color: #ff9800; color: white; font-weight: bold; border-radius: 4px; border: none; cursor: pointer; outline: none;"></select>
                 </div>
             </div>
-
             <div class="tables-group">
                 <div class="task-container">
                     <h3>일일 숙제 (필수)</h3>
@@ -177,13 +233,11 @@
             <div style="margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <button onclick="completeWeeklyTasks()" style="cursor: pointer; padding: 5px 10px; background-color: #1565c0; color: white; border: 1px solid #2196f3; font-weight: bold; border-radius: 3px;">[주간 일괄완료]</button>
                 <button onclick="resetWeeklyTasks()" style="cursor: pointer; padding: 5px 10px; background-color: #e65100; color: white; border: 1px solid #ff9800; font-weight: bold; border-radius: 3px;">[주간 일괄해제]</button>
-                
                 <div style="display: flex; align-items: center; gap: 8px; margin-left: 10px;">
                     <span style="color: #ffd700; font-weight: bold; font-size: 14px;">클라이언트 선택:</span>
                     <select class="client-select" style="padding: 6px 12px; background-color: #ff9800; color: white; font-weight: bold; border-radius: 4px; border: none; cursor: pointer; outline: none;"></select>
                 </div>
             </div>
-
             <div class="task-container">
                 <h3>⭐ 주간 대형 퀘스트 목록</h3>
                 <table id="weekly-table">
@@ -194,18 +248,19 @@
             </div>
         </section>
 
-        <!-- 3. 환경 설정 섹션 -->
+        <!-- 3. 생산시설 관리 섹션 (Electron 외부 factory.html 자동 주입) -->
+        <section id="factory-manage" class="page"></section>
+
+        <!-- 4. 환경 설정 섹션 -->
         <section id="settings-view" class="page">
             <table>
                 <tbody>
-                    <tr>
-                        <td colspan="2" id="client-name-inputs"></td>
-                    </tr>
+                    <tr><td colspan="2" id="client-name-inputs"></td></tr>
                 </tbody>
             </table>
         </section>
 
-        <!-- 4. 수익 통계 섹션 -->
+        <!-- 5. 수익 통계 섹션 -->
         <section id="profit-stats" class="page">
             <div class="profit-container">
                 <h2>💰 다중 클라 수익 통계</h2>
@@ -215,16 +270,15 @@
                     <button class="tab-btn" onclick="showProfitTab('monthly', event)">월간 통계</button>
                     <button class="tab-btn" onclick="showProfitTab('goal', event)">목표 설정</button>
                     <button class="tab-btn" onclick="showProfitTab('price', event)">아이템 최저가 확인</button>
+                    <button class="tab-btn" onclick="openCalcModal()">🧮 손익계산</button>
                 </div>
 
                 <!-- 일간 통계 탭 -->
                 <div id="daily-view" class="tab-content" style="display:block;">
                     <div class="input-group" style="margin-bottom: 15px; display: flex; gap: 10px;">
                         <select class="client-select" style="padding: 5px; background-color: #ff9800; color: white; font-weight: bold; border-radius: 4px; border: none; cursor: pointer; outline: none;"></select>
-
                         <input list="item-list" type="text" id="item-name" placeholder="아이템명"> 
                         <datalist id="item-list"></datalist>
-
                         <input type="number" id="item-price" placeholder="단가">
                         <input type="number" id="item-qty" placeholder="수량">
                         <button type="button" onclick="addProfit()">추가</button>
@@ -239,14 +293,7 @@
                 <!-- 주간 통계 탭 -->
                 <div id="weekly-view" class="tab-content" style="display:none;">
                     <table class="profit-table">
-                        <thead>
-                            <tr>
-                                <th>클라이언트</th>
-                                <th>아이템</th>
-                                <th>수량</th>
-                                <th>총액</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>클라이언트</th><th>아이템</th><th>수량</th><th>총액</th></tr></thead>
                         <tbody id="weekly-profit-body"></tbody>
                     </table>
                     <button class="blog-btn" onclick="copyBlogText()">네이버 블로그 포스팅용 텍스트 복사</button>
@@ -255,14 +302,7 @@
                 <!-- 월간 통계 탭 -->
                 <div id="monthly-view" class="tab-content" style="display:none;">
                     <table class="profit-table">
-                        <thead>
-                            <tr>
-                                <th>클라이언트</th>
-                                <th>아이템</th>
-                                <th>수량</th>
-                                <th>총액</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>클라이언트</th><th>아이템</th><th>수량</th><th>총액</th></tr></thead>
                         <tbody id="monthly-profit-body"></tbody>
                     </table>
                     <button class="blog-btn" onclick="copyBlogText()">네이버 블로그 포스팅용 텍스트 복사</button>
@@ -272,32 +312,115 @@
                 <div id="goal-view" class="tab-content" style="display:none;">
                     <h3>🎯 클라별 주간 목표 수익 설정</h3>
                     <table class="profit-table">
-                        <thead>
-                            <tr>
-                                <th>클라이언트</th>
-                                <th>목표 수익(원)</th>
-                                <th>달성 현황 및 진행도</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>클라이언트</th><th>목표 수익(원)</th><th>달성 현황 및 진행도</th></tr></thead>
                         <tbody id="goal-body"></tbody>
                     </table>
                 </div>
 
                 <!-- 최저가 확인 탭 -->
                 <div id="price-view" class="tab-content" style="display:none;">
-                    <h3>🔥 [<span id="display-server-name"></span>] 서버 최저가 리스트</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                        <h3 style="margin: 0;">🔥 [<span id="display-server-name">공통</span>] 서버 최저가 리스트</h3>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="price-valid-days" onchange="renderPriceTable()" class="select-days" style="padding: 5px 8px; font-size: 13px;">
+                                <option value="3">최근 3일 이내</option>
+                                <option value="7" selected>최근 7일 이내</option>
+                                <option value="14">최근 14일 이내</option>
+                                <option value="30">최근 30일 이내</option>
+                            </select>
+                            <button onclick="renderPriceTable()" style="padding: 6px 12px; background-color: #2e7d32; color: white; border: 1px solid #4caf50; font-weight: bold; border-radius: 4px; cursor: pointer;">🔄 새로고침</button>
+                        </div>
+                    </div>
                     <table class="profit-table lowest-price-table">
-                        <thead>
-                            <tr><th>아이템명</th><th>최저가(원)</th><th>상태</th></tr>
-                        </thead>
+                        <thead><tr><th>아이템명</th><th>최저가(원)</th><th>등록 일시</th></tr></thead>
                         <tbody id="price-body"></tbody>
                     </table>
+                    <div id="price-pagination" style="display: flex; justify-content: center; margin-top: 15px; gap: 4px;"></div>
                 </div>
-
             </div>
         </section>
     </div>
 
+    <!-- 소탕령 전용 손익계산기 모달 창 -->
+    <div id="calc-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: #1e293b; color: #f8fafc; padding: 24px; border-radius: 12px; width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #475569; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                <h3 style="margin: 0; color: #ffd700; font-size: 18px;">📜 시나리오 소탕권 손익 계산기</h3>
+                <span onclick="closeCalcModal()" style="cursor: pointer; font-weight: bold; font-size: 22px; color: #aaa; line-height: 1;">&times;</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 2;">
+                        <label style="font-size: 13px; color: #cbd5e1; display: block; margin-bottom: 4px;">소탕령 구매 단가 (원)</label>
+                        <input type="number" id="calc-buy-price" value="2000000" placeholder="2000000" oninput="calculateProfitMargin()" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px; box-sizing: border-box; outline: none;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px; color: #cbd5e1; display: block; margin-bottom: 4px;">사용 수량</label>
+                        <input type="number" id="calc-qty" value="1" placeholder="1" oninput="calculateProfitMargin()" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px; box-sizing: border-box; outline: none;">
+                    </div>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #334155; margin: 4px 0;">
+                <div>
+                    <label style="font-size: 13px; color: #ffd700; display: block; margin-bottom: 6px; font-weight: bold;">🎁 획득한 드랍 아이템 추가</label>
+                    <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <button type="button" onclick="quickSelectCalcItem('시간의금화')" style="padding: 4px 8px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer; font-size: 12px;">+ 시간의금화</button>
+                        <button type="button" onclick="quickSelectCalcItem('시간의은화')" style="padding: 4px 8px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer; font-size: 12px;">+ 시간의은화</button>
+                        <button type="button" onclick="quickSelectCalcItem('영웅의금화')" style="padding: 4px 8px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer; font-size: 12px;">+ 영웅의금화</button>
+                        <button type="button" onclick="quickSelectCalcItem('영웅의은화')" style="padding: 4px 8px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer; font-size: 12px;">+ 영웅의은화</button>
+                        <button type="button" onclick="quickSelectCalcItem('영웅의영혼석')" style="padding: 4px 8px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer; font-size: 12px;">+ 영웅의영혼석</button>
+                        <button type="button" onclick="quickSelectCalcItem('시간의가루')" style="padding: 4px 8px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer; font-size: 12px;">+ 시간의가루</button>
+                        <button type="button" onclick="quickSelectCalcItem('봉인된힘의파편')" style="padding: 4px 8px; background: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; cursor: pointer; font-size: 12px;">+ 봉인된힘의파편</button>
+                    </div>
+                    <div style="display: flex; gap: 6px; margin-bottom: 6px; width: 100%; box-sizing: border-box;">
+                        <input type="text" id="calc-item-name" placeholder="아이템명" style="flex: 2.2; width: 0; min-width: 0; padding: 6px 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px; font-size: 13px; box-sizing: border-box; outline: none;">
+                        <input type="number" id="calc-item-price" placeholder="단가" style="flex: 1.8; width: 0; min-width: 0; padding: 6px 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px; font-size: 13px; box-sizing: border-box; outline: none;">
+                        <input type="number" id="calc-item-qty" placeholder="수량" value="1" min="1" style="flex: 1; width: 0; min-width: 0; padding: 6px 6px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px; font-size: 13px; box-sizing: border-box; text-align: center; outline: none;">
+                    </div>
+                    <button onclick="addCalcItem()" style="width: 100%; padding: 6px; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px;">+ 아이템 추가</button>
+                </div>
+                <div id="calc-item-list" style="max-height: 120px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 4px; padding: 6px; font-size: 12px;">
+                    <div style="text-align: center; color: #64748b; padding: 10px;">등록된 획득 아이템이 없습니다.</div>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #334155; margin: 4px 0;">
+                <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.8;">
+                    <div style="display: flex; justify-content: space-between;"><span style="color: #94a3b8;">소탕령 총 구매비:</span><span id="calc-total-cost" style="color: #f8fafc;">2,000,000원</span></div>
+                    <div style="display: flex; justify-content: space-between;"><span style="color: #94a3b8;">획득 아이템 총액:</span><span id="calc-total-item-value" style="color: #f8fafc;">0원</span></div>
+                    <hr style="border: 0; border-top: 1px dashed #334155; margin: 6px 0;">
+                    <div style="display: flex; justify-content: space-between; font-size: 15px;"><strong>최종 손익:</strong><strong id="calc-net-profit" style="color: #ef4444;">-2,000,000원 (손해)</strong></div>
+                    <div style="display: flex; justify-content: space-between;"><span>수익률 (ROI):</span><strong id="calc-roi" style="color: #ef4444;">-100%</strong></div>
+                </div>
+                <button onclick="closeCalcModal()" style="padding: 10px; background: #475569; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <!-- 기존 스크립트 -->
     <script src="main_Script.js?v=5"></script>
+
+    <!-- 🏭 데스크톱(Electron) 환경용 factory.html 동기식 불러오기 및 factory.js 바인딩 스크립트 -->
+    <script>
+        (function initFactoryModule() {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                
+                // 1. factory.html 파일 읽기
+                const factoryHtmlPath = path.join(__dirname, 'factory.html');
+                if (fs.existsSync(factoryHtmlPath)) {
+                    const htmlData = fs.readFileSync(factoryHtmlPath, 'utf8');
+                    document.getElementById('factory-manage').innerHTML = htmlData;
+                } else {
+                    console.error("factory.html 파일을 찾을 수 없습니다.");
+                }
+
+                // 2. factory.js 동적 로드
+                require('./factory.js');
+            } catch (err) {
+                console.error("데스크톱 모듈 로드 실패:", err);
+            }
+        })();
+    </script>
 </body>
 </html>

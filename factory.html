@@ -1,0 +1,155 @@
+<div class="factory-wrapper">
+    <!-- 대분류 카테고리 버튼 -->
+    <div class="factory-category-menu">
+        <button class="factory-category-btn active" onclick="switchFactoryCategory('농장', this)">농장</button>
+        <button class="factory-category-btn" onclick="switchFactoryCategory('목장', this)">목장</button>
+        <button class="factory-category-btn" onclick="switchFactoryCategory('공장', this)">공장</button>
+        <button class="factory-category-btn" onclick="switchFactoryCategory('무기장', this)">무기장</button>
+        <button class="factory-category-btn" onclick="switchFactoryCategory('갑주장', this)">갑주장</button>
+    </div>
+
+    <!-- 1~20번 목록 뷰 -->
+    <div id="factory-list-view" class="factory-container">
+        <div id="factory-list-title" class="factory-title">농장 목록</div>
+        <table class="factory-table">
+            <thead>
+                <tr>
+                    <th>시설명</th>
+                    <th>소유자</th>
+                    <th class="text-right">생산 물품</th>
+                    <th class="text-right">목표 수량</th>
+                </tr>
+            </thead>
+            <tbody id="factory-table-body">
+                <!-- factory.js에 의해 동적으로 생성됩니다 -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 상세 관리 화면 뷰 -->
+    <div id="factory-detail-view" class="factory-detail-view" style="display: none;">
+        <div class="factory-detail-overlay">
+            <!-- 헤더 영역 -->
+            <div class="factory-detail-header">
+                <div>
+                    <h2 id="detail-header-title">01번 농장 관리</h2>
+                    <div class="owner-input-wrap">
+                        <label for="facilityOwner">시설 소유자:</label>
+                        <input type="text" id="facilityOwner" placeholder="소유자 캐릭터명" oninput="calculateFactoryAll()">
+                    </div>
+                </div>
+                <button class="factory-back-btn" onclick="backToFactoryList()">← 목록으로 돌아가기</button>
+            </div>
+
+            <!-- 그리드 영역 -->
+            <div class="factory-grid">
+                <!-- 좌측: 입력 카드 -->
+                <div class="factory-card">
+                    <h3>📝 데이터 입력</h3>
+                    
+                    <!-- 자동완성형 텍스트 입력창 -->
+                    <div class="factory-form-group">
+                        <label for="itemInput">생산 물품</label>
+                        <input type="text" id="itemInput" list="factory-item-list" placeholder="물품명을 입력하거나 선택하세요" oninput="onSelectFactoryItem()" onchange="onSelectFactoryItem()">
+                        <datalist id="factory-item-list">
+                            <!-- factory.js에서 동적으로 생성 및 자동완성 목록 제공 -->
+                        </datalist>
+                    </div>
+
+                    <div class="factory-form-group">
+                        <label for="baseWorkload">개당 작업량</label>
+                        <input type="number" id="baseWorkload" value="0" oninput="calculateFactoryAll()">
+                    </div>
+
+                    <div class="factory-form-group">
+                        <label for="targetQty">완성품 수량</label>
+                        <input type="number" id="targetQty" value="1" oninput="calculateFactoryAll()">
+                    </div>
+
+                    <!-- 📦 재료비 입력 영역 (동적 목록 + 수동 총액 입력 가능) -->
+                    <div class="material-section" style="margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 13px; font-weight: bold; color: #ffd700; margin-bottom: 8px;">📦 생산 필요 재료 및 단가</div>
+                        
+                        <!-- 동적으로 세부 재료 필드가 들어오는 컨테이너 -->
+                        <div id="material-list-container" class="material-container"></div>
+
+                        <!-- 만약 세부 재료 단가가 없을 때 수동으로 입력할 수 있는 직접 입력 필드 -->
+                        <div class="factory-form-group" style="margin-top: 8px;">
+                            <label for="manualMaterialCost">총 재료비 직접 입력 (골드)</label>
+                            <input type="number" id="manualMaterialCost" value="0" placeholder="직접 입력시 세부단가 대신 적용" oninput="calculateFactoryAll()">
+                        </div>
+                    </div>
+
+                    <hr class="card-divider">
+
+                    <div class="factory-form-group">
+                        <label for="useMasterBuff">작업의 달인 사용</label>
+                        <input type="checkbox" id="useMasterBuff" style="width: 20px;" onchange="calculateFactoryAll()">
+                    </div>
+
+                    <div class="factory-form-group">
+                        <label for="masterTicketPrice">작달 시세 (골드)</label>
+                        <input type="number" id="masterTicketPrice" value="0" oninput="calculateFactoryAll()">
+                    </div>
+
+                    <div class="factory-form-group">
+                        <label for="wagePerWorkload">작업당 임금 (골드)</label>
+                        <input type="number" id="wagePerWorkload" value="0" oninput="calculateFactoryAll()">
+                    </div>
+
+                    <div class="factory-form-group">
+                        <label for="dailySpeed">일일 일꾼 차감량</label>
+                        <input type="number" id="dailySpeed" value="1200" oninput="calculateFactoryAll()">
+                    </div>
+
+                    <div class="factory-form-group">
+                        <label for="sellPrice">완성품 예상 판매가</label>
+                        <input type="number" id="sellPrice" value="0" oninput="calculateFactoryAll()">
+                    </div>
+                </div>
+
+                <!-- 우측: 결과 산출 카드 -->
+                <div class="factory-card">
+                    <h3>📊 실시간 계산 산출 결과</h3>
+                    
+                    <div class="factory-result-item">
+                        <span class="factory-result-label">총 필요 작업량</span>
+                        <span class="factory-result-value" id="resTotalWorkload">0</span>
+                    </div>
+                    <div class="factory-result-item">
+                        <span class="factory-result-label">필요 작달 개수</span>
+                        <span class="factory-result-value" id="resMasterCount">0 개</span>
+                    </div>
+                    <div class="factory-result-item">
+                        <span class="factory-result-label">총 재료비</span>
+                        <span class="factory-result-value" id="resMaterialCost">0 G</span>
+                    </div>
+                    <div class="factory-result-item">
+                        <span class="factory-result-label">총 제작 원가</span>
+                        <span class="factory-result-value" id="resTotalCost">0 G</span>
+                    </div>
+                    <div class="factory-result-item">
+                        <span class="factory-result-label">개당 제작 원가</span>
+                        <span class="factory-result-value" id="resUnitCost">0 G</span>
+                    </div>
+                    <div class="factory-result-item">
+                        <span class="factory-result-label">예상 순이익</span>
+                        <span class="factory-result-value highlight" id="resNetProfit">0 G</span>
+                    </div>
+                    <div class="factory-result-item">
+                        <span class="factory-result-label">수익률 (ROI)</span>
+                        <span class="factory-result-value highlight" id="resROI">0 %</span>
+                    </div>
+                    <div class="factory-result-item">
+                        <span class="factory-result-label">작업 완료 예정 시각</span>
+                        <span class="factory-result-value" id="resCompletionTime">-</span>
+                    </div>
+                    <div class="factory-result-item">
+                        <span class="factory-result-label">최대 방치 마감 시각 (152h)</span>
+                        <span class="factory-result-value highlight" id="resDestructionTime">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
