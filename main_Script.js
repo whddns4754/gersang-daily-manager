@@ -875,7 +875,7 @@ function refreshMainTables() {
 }
 
 // ==========================================
-// [수정 완료] 날짜 변경 시 숙제 체크 및 일간 수익 통계 자동 초기화
+// [날짜 변경 시 숙제 체크 및 일간 수익 통계 자동 초기화]
 // ==========================================
 function checkAndResetTasks() {
     const today = new Date().toISOString().split('T')[0];
@@ -898,7 +898,7 @@ function checkAndResetTasks() {
             });
         }
 
-        // 2. [추가] 날짜 변경 시 일간 수익 통계(savedProfits) 자동 삭제
+        // 2. 날짜 변경 시 일간 수익 통계(savedProfits) 자동 삭제
         localStorage.removeItem('savedProfits');
 
         localStorage.setItem(serverLastCheckDateKey, today);
