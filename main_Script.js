@@ -223,15 +223,23 @@ function formatCurrency(amount) {
     return amount.toLocaleString() + "원";
 }
 
+// [수정 완료] 일간 통계 표 불러오기 (오늘 날짜의 데이터만 UI에 표시)
 function loadProfitData() {
     const savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
     const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
+    const todayStr = new Date().toISOString().split('T')[0];
+
     const tbody = document.getElementById('profit-body');
     if (!tbody) return;
     tbody.innerHTML = ''; 
+
     savedData.forEach((entry) => {
         const entryServer = cleanServerName(entry.server || "서버없음");
         if (entryServer !== currentServer) return;
+
+        // [핵심] 오늘 작성된 데이터가 아니면 일간 통계 표에 표시하지 않고 패스
+        const entryDateStr = entry.date ? entry.date.split('T')[0] : '';
+        if (entryDateStr !== todayStr) return;
 
         const unitPrice = parseInt(entry.price) || 0;
         const quantity = parseInt(entry.qty) || 0;
@@ -486,34 +494,8 @@ async function saveProfitEntry(client, item, price, qty) {
     updateDashboard(); 
 }
 
+// [수정 완료] 수정/삭제 시 테이블 재구성 버그 수정 (원래 항목 삭제 방식)
 function saveProfitsToLocal() {
-    const rows = document.querySelectorAll('#profit-body tr');
-    const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    const savedData = Array.from(rows).map(tr => {
-        const c = tr.querySelectorAll('td');
-        const itemName = c[1].innerText.trim();
-        saveItemToMasterList(itemName); 
-
-        return { 
-            client: c[0].innerText, 
-            item: itemName, 
-            qty: c[2].innerText, 
-            price: c[3].getAttribute('data-raw-price') || 0, 
-            server: currentServer,
-            date: todayStr
-        };
-    });
-    localStorage.setItem('savedProfits', JSON.stringify(savedData));
-    
-    let allProfits = {};
-    savedData.forEach(entry => {
-        const userServerKey = `${currentServer}_${entry.client}`;
-        if (!allProfits[userServerKey]) allProfits[userServerKey] = { server: currentServer, items: {} };
-        allProfits[userServerKey].items[entry.item] = parseInt(entry.price) || 0;
-    });
-    localStorage.setItem('all_user_profits', JSON.stringify(allProfits));
     loadProfitData();
     updateDashboard();
 }
@@ -529,14 +511,34 @@ function editRow(btn) {
     document.getElementById('item-qty').value = row.cells[2].innerText;
     const rawPrice = row.cells[3].getAttribute('data-raw-price');
     if (rawPrice) document.getElementById('item-price').value = rawPrice;
-    row.remove();
-    saveProfitsToLocal();
-    renderPriceTable();
+
+    // 해당 항목 삭제
+    deleteRow(btn);
 }
 
 function deleteRow(btn) {
-    btn.parentElement.parentElement.remove();
-    saveProfitsToLocal();
+    const row = btn.parentElement.parentElement;
+    const client = row.cells[0].innerText;
+    const item = row.cells[1].innerText;
+    const currentServer = cleanServerName(localStorage.getItem('selectedServer') || "서버없음");
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    let savedData = JSON.parse(localStorage.getItem('savedProfits') || '[]');
+    
+    // 일치하는 '오늘 날짜' 항목 1개 삭제
+    const targetIndex = savedData.findIndex(entry => 
+        cleanServerName(entry.server) === currentServer &&
+        entry.client === client &&
+        entry.item === item &&
+        (entry.date ? entry.date.split('T')[0] : '') === todayStr
+    );
+
+    if (targetIndex !== -1) {
+        savedData.splice(targetIndex, 1);
+        localStorage.setItem('savedProfits', JSON.stringify(savedData));
+    }
+
+    loadProfitData();
     renderPriceTable();
 }
 
@@ -874,9 +876,7 @@ function refreshMainTables() {
     updateDashboard();
 }
 
-// ==========================================
-// [날짜 변경 시 숙제 체크 및 일간 수익 통계 자동 초기화]
-// ==========================================
+// [수정 완료] 자정 리셋 시 숙제만 체크 해제하고, savedProfits 삭제 구문 제거
 function checkAndResetTasks() {
     const today = new Date().toISOString().split('T')[0];
     const serverLastCheckDateKey = getServerKey('lastCheckDate');
@@ -898,8 +898,8 @@ function checkAndResetTasks() {
             });
         }
 
-        // 2. 날짜 변경 시 일간 수익 통계(savedProfits) 자동 삭제
-        localStorage.removeItem('savedProfits');
+        // [핵심] localStorage.removeItem('savedProfits'); 구문 제거 완료
+        // 이전 수익 데이터가 유지되므로 주간/월간 통계가 보존됩니다.
 
         localStorage.setItem(serverLastCheckDateKey, today);
     }
@@ -1283,7 +1283,8 @@ function updateDashboard() {
     const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
 
     const todayProfit = savedData.filter(entry => {
-        return cleanServerName(entry.server) === currentServer && entry.date === todayStr;
+        const entryDateStr = entry.date ? entry.date.split('T')[0] : '';
+        return cleanServerName(entry.server) === currentServer && entryDateStr === todayStr;
     }).reduce((acc, curr) => acc + (parseInt(curr.price || 0) * parseInt(curr.qty || 0)), 0);
 
     const profitEl = document.getElementById('today-total-profit');
@@ -1356,7 +1357,6 @@ function updateItemDataList() {
 }
 
 window.onload = () => {
-    // FactoryManager 안전 초기화 (DOM 요소 존재 시 구동)
     if (FactoryManager && typeof FactoryManager.init === 'function') {
         if (document.getElementById('factory-table-body')) {
             FactoryManager.init();
